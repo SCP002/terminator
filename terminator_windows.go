@@ -12,12 +12,12 @@ import (
 // by sending CTRL_BREAK_EVENT (for console applications) and
 // WM_CLOSE (for desktop applications) sequentially
 func Stop(pid int) {
-	SendCtrlBreak(pid)
-	CloseWindow(pid)
+	sendCtrlBreak(pid)
+	closeWindow(pid)
 }
 
-// SendCtrlBreak sends CTRL_BREAK_EVENT message to the console process with the specified PID
-func SendCtrlBreak(pid int) {
+// sendCtrlBreak sends CTRL_BREAK_EVENT message to the console process with the specified PID
+func sendCtrlBreak(pid int) {
 	dll := syscall.MustLoadDLL("kernel32.dll")
 	defer dll.Release()
 	procedure := dll.MustFindProc("GenerateConsoleCtrlEvent")
@@ -28,8 +28,8 @@ func SendCtrlBreak(pid int) {
 	procedure.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
 }
 
-// CloseWindow sends WM_CLOSE message to the main window of the process with the specified PID
-func CloseWindow(pid int) {
+// closeWindow sends WM_CLOSE message to the main window of the process with the specified PID
+func closeWindow(pid int) {
 	w32.EnumWindows(func(hwnd w32.HWND) bool {
 		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
 
