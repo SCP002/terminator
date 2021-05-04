@@ -46,5 +46,5 @@ func closeWindow(pid int) {
 
 // isMainWindow returns if window with the specified handle is a main window
 func isMainWindow(hwnd w32.HWND) bool {
-	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
+	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 // && w32.IsWindowVisible(hwnd)
 }
