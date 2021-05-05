@@ -19,6 +19,7 @@ func Stop(pid int) error {
 	return nil
 }
 
-func IsRunning(pid int) (bool, error) { // TODO: This.
-	return false, nil
+// IsRunning returns true if process with the specified PID exists
+func IsRunning(pid int) (bool, error) {
+	return isRunning(pid)
 }
