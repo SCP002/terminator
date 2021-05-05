@@ -8,10 +8,10 @@ import (
 	"github.com/gonutz/w32/v2"
 )
 
-// Stop tries to gracefully terminate process with the specified PID
+// stop tries to gracefully terminate process with the specified PID
 // by sending CTRL_BREAK_EVENT (for console applications) and
 // WM_CLOSE (for desktop applications) sequentially
-func Stop(pid int) {
+func stop(pid int) {
 	sendCtrlBreak(pid)
 	closeWindow(pid)
 }
