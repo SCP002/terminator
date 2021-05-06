@@ -3,6 +3,8 @@ package terminator
 import (
 	"errors"
 	"fmt"
+
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 // Stop tries to gracefully terminate process with the specified PID
@@ -14,12 +16,12 @@ func Stop(pid int) error {
 		return err
 	}
 	if running {
-		return errors.New("Failed to stop the process with PID: " + fmt.Sprint(pid))
+		return errors.New("Failed to stop process with PID: " + fmt.Sprint(pid))
 	}
 	return nil
 }
 
 // IsRunning returns true if process with the specified PID exists
 func IsRunning(pid int) (bool, error) {
-	return isRunning(pid)
+	return process.PidExists(int32(pid))
 }
