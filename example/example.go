@@ -17,7 +17,7 @@ func main() {
 
 	time.Sleep(2 * time.Second)
 
-	err = terminator.Stop(command.Process.Pid)
+	err = terminator.Stop(9898, false)
 	if err != nil {
 		panic(err)
 	}
