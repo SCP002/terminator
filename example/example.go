@@ -9,11 +9,16 @@ import (
 
 func main() {
 	command := exec.Command("notepad")
+
 	err := command.Start()
 	if err != nil {
 		panic(err)
 	}
+
 	time.Sleep(2 * time.Second)
 
-	terminator.Stop(command.Process.Pid)
+	err = terminator.Stop(command.Process.Pid)
+	if err != nil {
+		panic(err)
+	}
 }
