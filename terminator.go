@@ -12,17 +12,17 @@ import (
 // If ignoreAbsent set to true, then do not return error if process
 // is not running (nothing to stop)
 func Stop(pid int, ignoreAbsent bool) error {
-		running, err := IsRunning(pid)
-		if err != nil {
-			return err
+	running, err := IsRunning(pid)
+	if err != nil {
+		return err
+	}
+	if !running {
+		if ignoreAbsent {
+			return nil
+		} else {
+			return errors.New("Process with PID " + fmt.Sprint(pid) + " does not exist")
 		}
-		if !running {
-			if ignoreAbsent {
-				return nil
-			} else {
-				return errors.New("Process with PID " + fmt.Sprint(pid) + " does not exist")
-			}
-		}
+	}
 
 	// stop does not have any return values so relying on IsRunning for error checks
 	stop(pid)
