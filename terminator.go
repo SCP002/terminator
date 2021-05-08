@@ -7,11 +7,16 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
+// TODO: Timeouts, see:
+// https://dev.to/hekonsek/using-context-in-go-timeout-hg7
+// https://stackoverflow.com/questions/61042141/stopping-running-function-using-context-timeout-in-golang
+
 // Stop tries to gracefully terminate process with the specified PID
 //
 // If ignoreAbsent set to true, then do not return error if process
 // is not running (nothing to stop)
 func Stop(pid int, ignoreAbsent bool) error {
+	// TODO: Fails to detect console applications
 	running, err := IsRunning(pid)
 	if err != nil {
 		return err
