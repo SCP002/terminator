@@ -27,6 +27,7 @@ func Stop(pid int, ignoreAbsent bool) error {
 	// stop does not have any return values so relying on IsRunning for error checks
 	stop(pid)
 
+	// TODO: Wait for window to close after message is sent
 	running, err = IsRunning(pid)
 	if err != nil {
 		return err
