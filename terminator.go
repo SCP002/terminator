@@ -16,7 +16,6 @@ import (
 // If ignoreAbsent set to true, then do not return error if process
 // is not running (nothing to stop)
 func Stop(pid int, ignoreAbsent bool) error {
-	// TODO: Fails to detect console applications
 	running, err := IsRunning(pid)
 	if err != nil {
 		return err
@@ -29,10 +28,12 @@ func Stop(pid int, ignoreAbsent bool) error {
 		}
 	}
 
-	// stop does not have any return values so relying on IsRunning for error checks
-	stop(pid)
+	// Can't fully rely on stop() return error value, so using IsRunning() for confirmation
+	err = stop(pid)
+	if err != nil {
+		return err
+	}
 
-	// TODO: Wait for window to close after message is sent
 	running, err = IsRunning(pid)
 	if err != nil {
 		return err
