@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -8,17 +10,25 @@ import (
 )
 
 func main() {
-	command := exec.Command("notepad")
+	cmd := exec.Command("sample-executable.cmd")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	err := command.Start()
+	err := cmd.Start()
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	err = terminator.Stop(command.Process.Pid, false)
+	err = terminator.Stop(cmd.Process.Pid, false)
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("Continuing execution")
+	time.Sleep(2 * time.Second)
+	fmt.Print("Press <Enter> to exit...")
+	fmt.Scanln()
 }
