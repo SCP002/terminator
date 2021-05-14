@@ -8,6 +8,6 @@ go get -u ./...
 :: Clear unused dependencies
 go mod tidy
 :: Run
-go run example.go
+go run main.go
 
 Exit /B 0
