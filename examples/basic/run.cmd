@@ -8,6 +8,6 @@ go get -u ./...
 :: Clear unused dependencies
 go mod tidy
 :: Run
-go run main.go
+go run terminator_basic.go
 
 Exit /B 0

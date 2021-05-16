@@ -13,6 +13,7 @@ func main() {
 	cmd := exec.Command("..\\..\\assets\\sample-executable.cmd")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// cmd.Stdin = os.Stdin
 
 	err := cmd.Start()
 	if err != nil {
@@ -24,11 +25,12 @@ func main() {
 
 	err = terminator.Stop(cmd.Process.Pid, false)
 	if err != nil {
-		panic(err)
+		fmt.Println("Stop failed with:", err)
 	}
 
 	fmt.Println("Continuing execution")
 	time.Sleep(2 * time.Second)
+
 	fmt.Print("Press <Enter> to exit...")
 	fmt.Scanln()
 }
