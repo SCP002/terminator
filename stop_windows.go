@@ -28,12 +28,13 @@ func hasWindow(pid int) bool {
 
 // stopConsole sends CTRL_C_EVENT message
 // to the console process with the specified PID
-// TODO: Try https://github.com/HattoriLabUTSW/windows-kill
-// TODO: Fallback to TaskKill /Pid {pid} /T /F
+// TODO: Try to send SIGINT, SIGBREAK, SIGTERM
+// TODO: Use TaskKill /Pid {pid} /T /F ?
 func stopConsole(pid int) error {
 	return nil
 }
 
+// TODO: Kill own / tree subprocess by iterating child (EnumThreadWindows)?
 // TODO: Add GUI kill tree support? (TaskKill?)
 // closeWindow sends WM_CLOSE message to the main window of the process with the specified PID
 func closeWindow(pid int) error {
