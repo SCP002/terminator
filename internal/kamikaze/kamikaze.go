@@ -68,7 +68,10 @@ func main() {
 	// else, if our parent process shares the same console with this process,
 	// we will stop the parent and SetConsoleCtrlHandler can't protect it.
 	f = dll.MustFindProc("GenerateConsoleCtrlEvent")
-	r1, _, _ = f.Call(windows.CTRL_C_EVENT, uintptr(0)) // Not a typo, should be 0
+	// Parameter is 0 (all processes attached to the current console) but not
+	// pid, or else it will fail to send a signal to consoles separate from
+	// the current.
+	r1, _, _ = f.Call(windows.CTRL_C_EVENT, uintptr(0))
 	if r1 == 0 {
 		os.Exit(exitSendCtrlCFailed)
 	}
