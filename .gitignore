@@ -14,3 +14,4 @@
 # Not these directories
 !/assets
 !/examples
+!/internal
