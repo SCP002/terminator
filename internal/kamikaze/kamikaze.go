@@ -9,7 +9,7 @@ import (
 
 /*
 	Simple command line program which recieves PID of the process
-	to send Ctrl + C signal to, and terminate together with the
+	to send Ctrl + C signal to, and terminates together with the
 	target process.
 
 	Meant to be built with -ldflags -H=windowsgui build options to
@@ -58,7 +58,7 @@ func main() {
 		os.Exit(exitEnableCtrlCFailed)
 	}
 
-	// Send Ctrl + C signal to the current console group
+	// Send Ctrl + C signal to the current console process group
 	f = dll.MustFindProc("GenerateConsoleCtrlEvent")
 	r1, _, _ = f.Call(windows.CTRL_C_EVENT, uintptr(0))
 	if r1 == 0 {
