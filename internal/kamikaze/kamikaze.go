@@ -17,12 +17,12 @@ import (
 	to not to call "FreeConsole" for nothing.
 
 	Exit codes:
-	0			- Application exited normally. NOT an expected value in our case.
-	1			- Wrong PID.
-	2			- AttachConsole failed.
-	3			- SetConsoleCtrlHandler failed.
-	4			- GenerateConsoleCtrlEvent failed.
-	3221225786	- STATUS_CONTROL_C_EXIT, the application terminated as a result of a Ctrl + C, expected value.
+	0          - Application exited normally. NOT an expected value in our case.
+	1          - Wrong PID.
+	2          - AttachConsole failed.
+	3          - SetConsoleCtrlHandler failed.
+	4          - GenerateConsoleCtrlEvent failed.
+	3221225786 - STATUS_CONTROL_C_EXIT, the application terminated as a result of a Ctrl + C, expected value.
 */
 
 const (
@@ -38,6 +38,8 @@ func main() {
 	flag.IntVar(&pid, "pid", -1, "Process identifier of the console to attach to")
 	flag.Parse()
 
+	// Negative process identifiers are disallowed on Windows,
+	// using it as a default value check.
 	if pid == -1 {
 		os.Exit(exitWrongPid)
 	}
@@ -45,14 +47,14 @@ func main() {
 	dll := windows.MustLoadDLL("kernel32.dll")
 	defer dll.Release()
 
-	// Attach to the target process console (form a console process group)
+	// Attach to the target process console (form a console process group).
 	f := dll.MustFindProc("AttachConsole")
 	r1, _, _ := f.Call(uintptr(pid))
 	if r1 == 0 {
 		os.Exit(exitAttachFailed)
 	}
 
-	// Enable Ctrl + C processing (just in case)
+	// Enable Ctrl + C processing (just in case).
 	f = dll.MustFindProc("SetConsoleCtrlHandler")
 	const NULL uintptr = 0
 	const FALSE uintptr = 0
@@ -61,12 +63,17 @@ func main() {
 		os.Exit(exitEnableCtrlCFailed)
 	}
 
-	// Send Ctrl + C signal to the current console process group
+	// Send Ctrl + C signal to the current console process group.
+	// Not using CTRL_BREAK_EVENT (which can't be ignored by the process) or
+	// else, if our parent process shares the same console with this process,
+	// we will stop the parent and SetConsoleCtrlHandler can't protect it.
 	f = dll.MustFindProc("GenerateConsoleCtrlEvent")
-	r1, _, _ = f.Call(windows.CTRL_C_EVENT, uintptr(0))
+	r1, _, _ = f.Call(windows.CTRL_C_EVENT, uintptr(0)) // Not a typo, should be 0
 	if r1 == 0 {
 		os.Exit(exitSendCtrlCFailed)
 	}
 
+	// If this program runs properly, we should never reach this point, rather
+	// exit with STATUS_CONTROL_C_EXIT (3221225786) exit code.
 	os.Exit(exitNormal)
 }
