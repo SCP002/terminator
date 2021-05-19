@@ -17,14 +17,17 @@ import (
 	to not to call "FreeConsole" for nothing.
 
 	Exit codes:
-	1 - Wrong PID.
-	2 - AttachConsole failed.
-	3 - SetConsoleCtrlHandler failed.
-	4 - GenerateConsoleCtrlEvent failed.
+	0			- Application exited normally. NOT an expected value in our case.
+	1			- Wrong PID.
+	2			- AttachConsole failed.
+	3			- SetConsoleCtrlHandler failed.
+	4			- GenerateConsoleCtrlEvent failed.
+	3221225786	- STATUS_CONTROL_C_EXIT, the application terminated as a result of a Ctrl + C, expected value.
 */
 
 const (
-	exitWrongPid int = iota + 1
+	exitNormal int = iota
+	exitWrongPid
 	exitAttachFailed
 	exitEnableCtrlCFailed
 	exitSendCtrlCFailed
@@ -65,5 +68,5 @@ func main() {
 		os.Exit(exitSendCtrlCFailed)
 	}
 
-	os.Exit(0)
+	os.Exit(exitNormal)
 }
