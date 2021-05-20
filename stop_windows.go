@@ -67,6 +67,8 @@ func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
+// TODO: Add note about "Terminate batch job (Y/N)?" in separate consoles.
+// TODO: Add note child kill.
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
 // specified PID.
 //
@@ -75,11 +77,13 @@ func sendCtrlC(pid int) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
+	const STATUS_CONTROL_C_EXIT int = 3221225786
 
 	dll := windows.MustLoadDLL("kernel32.dll")
 	defer dll.Release()
 
-	// Disable Ctrl + C processing. If we don't ignore it here, then if the
+	// Disable Ctrl + C processing. If we don't disable it here, then 
+	// despites the fact we're enabling it in Another Process later, if the
 	// target process is using the same console as the current process, our
 	// program will terminate itself.
 	f := dll.MustFindProc("SetConsoleCtrlHandler")
@@ -96,6 +100,7 @@ func sendCtrlC(pid int) error {
 	// unless this process was started from cmd.exe, the current console will be
 	// taken down by the system, so, this process will lose it's original console
 	// (AllocConsole means no previous output, probably broken redirection etc).
+	// See /internal/kamikaze/kamikaze.go for the source code.
 	kamikaze := exec.Command("D:\\Projects\\terminator\\assets\\kamikaze.exe", "-pid", fmt.Sprint(pid))
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.DETACHED_PROCESS
@@ -105,13 +110,23 @@ func sendCtrlC(pid int) error {
 	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT (3221225786).
 	_ = kamikaze.Run()
 
-	// Enable Ctrl + C processing back to make this program to react on Ctrl + C
+	// Enable Ctrl + C processing back to make this program react on Ctrl + C
 	// accordingly again and prevent new child processes from inheriting the disabled state.
-	// TODO: Pause before enable Ctrl + C (better analyze wait stack if possible), document the case.
+	// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back
+	// again to prevent self kill if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is
+	// sent. We omit such delay as the call to kamikaze.Run() stops current goroutine until
+	// CTRL_C_EVENT is sent or process exited with unexpected exit code (CTRL_C_EVENT failed).
 	f = dll.MustFindProc("SetConsoleCtrlHandler")
 	r1, _, err = f.Call(NULL, FALSE)
 	if r1 == 0 {
 		return err
+	}
+
+	// Return error if kamikaze process failed to exit with STATUS_CONTROL_C_EXIT
+	// (target pid was not terminated with Ctrl + C).
+	exitCode := kamikaze.ProcessState.ExitCode()
+	if exitCode != STATUS_CONTROL_C_EXIT {
+		return errors.New("Kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
 	return nil
