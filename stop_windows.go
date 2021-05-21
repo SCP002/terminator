@@ -67,8 +67,11 @@ func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
-// TODO: Add note about "Terminate batch job (Y/N)?" in separate consoles.
-// TODO: Add note child kill.
+// TODO: Add note about "Terminate batch job (Y/N)?" in separate consoles. How to fix it?
+//       https://github.com/hectane/go-acl + WinBatchSid?
+//       https://github.com/alexbrainman/ps?
+//       Send Y and \n by sendkey?
+// TODO: Add note about child kill.
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
 // specified PID.
 //
@@ -82,7 +85,7 @@ func sendCtrlC(pid int) error {
 	dll := windows.MustLoadDLL("kernel32.dll")
 	defer dll.Release()
 
-	// Disable Ctrl + C processing. If we don't disable it here, then 
+	// Disable Ctrl + C processing. If we don't disable it here, then
 	// despites the fact we're enabling it in Another Process later, if the
 	// target process is using the same console as the current process, our
 	// program will terminate itself.
@@ -98,7 +101,7 @@ func sendCtrlC(pid int) error {
 	// If the target process has it's own, separate console, then to
 	// attach to that console we have to FreeConsole of this process first, so,
 	// unless this process was started from cmd.exe, the current console will be
-	// taken down by the system, so, this process will lose it's original console
+	// destroyed by the system, so, this process will lose it's original console
 	// (AllocConsole means no previous output, probably broken redirection etc).
 	// See /internal/kamikaze/kamikaze.go for the source code.
 	kamikaze := exec.Command("D:\\Projects\\terminator\\assets\\kamikaze.exe", "-pid", fmt.Sprint(pid))

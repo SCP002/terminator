@@ -71,7 +71,7 @@ func main() {
 	f = dll.MustFindProc("GenerateConsoleCtrlEvent")
 	// Not using CTRL_BREAK_EVENT (which can't be ignored by the process) or
 	// else, if our parent process shares the same console with this process,
-	// we will stop the parent and SetConsoleCtrlHandler can't protect it.
+	// we will stop the parent and SetConsoleCtrlHandler can't prevent it.
 	// Parameter is 0 (all processes attached to the current console) but not
 	// pid, or else it will fail to send a signal to consoles separate from
 	// the current.
