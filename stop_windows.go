@@ -20,7 +20,7 @@ func stop(pid int) error {
 	return sendCtrlC(pid)
 }
 
-// TODO: Kill own / tree subprocess by iterating child (EnumThreadWindows / EnumChildWindows / TaskKill)?
+// TODO: Kill own / tree subprocess by iterating child (gopsutil.NewProcess + p.Children / TaskKill)?
 // closeWindow sends WM_CLOSE message to the main window of the process with the specified PID.
 func closeWindow(pid int) error {
 	wnd, err := getWindow(pid)
@@ -68,6 +68,8 @@ func isMainWindow(hwnd w32.HWND) bool {
 }
 
 // TODO: Add note about "Terminate batch job (Y/N)?" in separate consoles. How to fix it?
+//       sayyes.exe and WriteConsole?
+//       Attach + os.Exit?
 //       https://github.com/hectane/go-acl + WinBatchSid?
 //       https://github.com/alexbrainman/ps?
 //       Send Y and \n by sendkey?

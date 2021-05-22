@@ -14,6 +14,11 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	// attr := syscall.SysProcAttr{}
+	// attr.CreationFlags |= windows.CREATE_NEW_CONSOLE
+	// attr.NoInheritHandles = true
+	// cmd.SysProcAttr = &attr
+
 	err := cmd.Start()
 	if err != nil {
 		panic(err)
