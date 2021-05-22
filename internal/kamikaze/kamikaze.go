@@ -17,10 +17,13 @@ import (
 	to not to call "FreeConsole" for nothing.
 
 	Exit codes:
-	1          - Wrong PID.
-	2          - AttachConsole failed.
-	3          - SetConsoleCtrlHandler failed.
-	4          - GenerateConsoleCtrlEvent failed.
+	1          - Wrong PID. Either not specified or -1.
+	2          - Calling process is already attached to a console.
+	3          - Target process does not have a console.
+	4          - Target process does not exist.
+	5          - AttachConsole failed for an unknown reason.
+	6          - SetConsoleCtrlHandler failed.
+	7          - GenerateConsoleCtrlEvent failed.
 	3221225786 - STATUS_CONTROL_C_EXIT, the application terminated
 	             as a result of a Ctrl + C, expected value.
 */
@@ -28,6 +31,9 @@ import (
 // Own exit codes
 const (
 	exitWrongPid int = iota + 1
+	exitCallerAlreadyAttached
+	exitTargetHaveNoConsole
+	exitProcessDoesNotExist
 	exitAttachFailed
 	exitEnableCtrlCFailed
 	exitSendCtrlCFailed
@@ -56,8 +62,17 @@ func main() {
 
 	// Attach to the target process console (form a console process group).
 	f := dll.MustFindProc("AttachConsole")
-	r1, _, _ := f.Call(uintptr(pid))
+	r1, _, err := f.Call(uintptr(pid))
 	if r1 == 0 {
+		if err == windows.ERROR_ACCESS_DENIED {
+			os.Exit(exitCallerAlreadyAttached)
+		}
+		if err == windows.ERROR_INVALID_HANDLE {
+			os.Exit(exitTargetHaveNoConsole)
+		}
+		if err == windows.ERROR_INVALID_PARAMETER {
+			os.Exit(exitProcessDoesNotExist)
+		}
 		os.Exit(exitAttachFailed)
 	}
 
