@@ -67,13 +67,7 @@ func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
-// TODO: Add note about "Terminate batch job (Y/N)?" in separate consoles. How to fix it?
-//       sayyes.exe and WriteConsole?
-//       Attach + os.Exit?
-//       https://github.com/hectane/go-acl + WinBatchSid?
-//       https://github.com/alexbrainman/ps?
-//       Send Y and \n by sendkey?
-// TODO: Add note about child kill.
+// TODO: Try to workaround / add note about child kill.
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
 // specified PID.
 //
@@ -84,20 +78,20 @@ func sendCtrlC(pid int) error {
 	const FALSE uintptr = 0
 	const STATUS_CONTROL_C_EXIT int = 3221225786
 
-	dll := windows.MustLoadDLL("kernel32.dll")
-	defer dll.Release()
+	k32 := windows.MustLoadDLL("kernel32.dll")
+	defer k32.Release()
 
 	// Disable Ctrl + C processing. If we don't disable it here, then
 	// despites the fact we're enabling it in Another Process later, if the
 	// target process is using the same console as the current process, our
 	// program will terminate itself.
-	f := dll.MustFindProc("SetConsoleCtrlHandler")
-	r1, _, err := f.Call(NULL, TRUE)
+	k32Proc := k32.MustFindProc("SetConsoleCtrlHandler")
+	r1, _, err := k32Proc.Call(NULL, TRUE)
 	if r1 == 0 {
 		return err
 	}
 
-	// Start kamikaze process to attach to console of the target process
+	// Start a kamikaze process to attach to console of the target process
 	// and send CTRL_C_EVENT.
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to
@@ -115,14 +109,28 @@ func sendCtrlC(pid int) error {
 	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT (3221225786).
 	_ = kamikaze.Run()
 
+	// TODO: if.
+	// Start a process to attach to console of the target process
+	// and write a message to it's input using the -msg flag.
+	// Such proxy process is required for the same reason as above.
+	sendMsg := exec.Command("D:\\Projects\\terminator\\assets\\send_message.exe", "-pid", fmt.Sprint(pid), "-msg", "Y\r\n")
+	attr = syscall.SysProcAttr{}
+	attr.CreationFlags |= windows.DETACHED_PROCESS
+	attr.NoInheritHandles = true
+	sendMsg.SysProcAttr = &attr
+	err = sendMsg.Run()
+	if err != nil {
+		return err
+	}
+
 	// Enable Ctrl + C processing back to make this program react on Ctrl + C
 	// accordingly again and prevent new child processes from inheriting the disabled state.
 	// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back
 	// again to prevent self kill if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is
 	// sent. We omit such delay as the call to kamikaze.Run() stops current goroutine until
 	// CTRL_C_EVENT is sent or process exited with unexpected exit code (CTRL_C_EVENT failed).
-	f = dll.MustFindProc("SetConsoleCtrlHandler")
-	r1, _, err = f.Call(NULL, FALSE)
+	k32Proc = k32.MustFindProc("SetConsoleCtrlHandler")
+	r1, _, err = k32Proc.Call(NULL, FALSE)
 	if r1 == 0 {
 		return err
 	}
@@ -145,14 +153,14 @@ func sendCtrlC(pid int) error {
 // }
 
 // func enumThreadWindows(threadId uintptr, callback func(window w32.HWND) bool) bool {
-// 	user32 := syscall.NewLazyDLL("User32.dll")
-// 	enumThreadWindows := user32.NewProc("EnumThreadWindows")
-// 	f := syscall.NewCallback(func(w, _ uintptr) uintptr {
+// 	u32 := syscall.NewLazyDLL("user32.dll")
+// 	u32Proc := u32.NewProc("EnumThreadWindows")
+// 	cb := syscall.NewCallback(func(w, _ uintptr) uintptr {
 // 		if callback(w32.HWND(w)) {
 // 			return 1
 // 		}
 // 		return 0
 // 	})
-// 	ret, _, _ := enumThreadWindows.Call(threadId, f, 0)
+// 	ret, _, _ := u32Proc.Call(threadId, cb, 0)
 // 	return ret != 0
 // }
