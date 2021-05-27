@@ -14,11 +14,6 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// attr := syscall.SysProcAttr{}
-	// attr.CreationFlags |= windows.CREATE_NEW_CONSOLE
-	// attr.NoInheritHandles = true
-	// cmd.SysProcAttr = &attr
-
 	err := cmd.Start()
 	if err != nil {
 		panic(err)
@@ -32,7 +27,7 @@ func main() {
 		fmt.Println("Stop failed with:", err)
 	}
 
-	fmt.Println("Continuing execution")
+	fmt.Println("Continuing execution of caller")
 	time.Sleep(2 * time.Second)
 
 	fmt.Print("Press <Enter> to exit...")
