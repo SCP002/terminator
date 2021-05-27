@@ -14,10 +14,11 @@ import (
 
 // stop tries to gracefully terminate process with the specified PID.
 func stop(pid int) error {
+	// TODO: Pass msg from the top entry point?
 	// TODO: Add If logic between closeWindow() and sendCtrlC() (just a parameter?)
 	// Calling closeWindow() to console application cause a few blank lines to appear in output.
 	// Calling sendCtrlC() to desktop application casue close button become unresponsive.
-	return sendCtrlC(pid)
+	return sendCtrlC(pid, "Y\r\n")
 }
 
 // TODO: Kill own / tree subprocess by iterating child (gopsutil.NewProcess + p.Children / TaskKill)?
@@ -68,11 +69,16 @@ func isMainWindow(hwnd w32.HWND) bool {
 }
 
 // TODO: Try to workaround / add note about child kill.
+// TODO: Embed dependencies (no absolute file paths)
+
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
 // specified PID.
 //
+// msg argument, if not empty, is a message to send to the input of the
+// target console after CTRL_C_EVENT is sent.
+//
 // Inspired by https://stackoverflow.com/a/15281070
-func sendCtrlC(pid int) error {
+func sendCtrlC(pid int, msg string) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
@@ -82,7 +88,7 @@ func sendCtrlC(pid int) error {
 	defer k32.Release()
 
 	// Disable Ctrl + C processing. If we don't disable it here, then
-	// despites the fact we're enabling it in Another Process later, if the
+	// despite the fact we're enabling it in Another Process later, if the
 	// target process is using the same console as the current process, our
 	// program will terminate itself.
 	k32Proc := k32.MustFindProc("SetConsoleCtrlHandler")
@@ -109,20 +115,6 @@ func sendCtrlC(pid int) error {
 	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT (3221225786).
 	_ = kamikaze.Run()
 
-	// TODO: if.
-	// Start a process to attach to console of the target process
-	// and write a message to it's input using the -msg flag.
-	// Such proxy process is required for the same reason as above.
-	sendMsg := exec.Command("D:\\Projects\\terminator\\assets\\send_message.exe", "-pid", fmt.Sprint(pid), "-msg", "Y\r\n")
-	attr = syscall.SysProcAttr{}
-	attr.CreationFlags |= windows.DETACHED_PROCESS
-	attr.NoInheritHandles = true
-	sendMsg.SysProcAttr = &attr
-	err = sendMsg.Run()
-	if err != nil {
-		return err
-	}
-
 	// Enable Ctrl + C processing back to make this program react on Ctrl + C
 	// accordingly again and prevent new child processes from inheriting the disabled state.
 	// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back
@@ -140,6 +132,22 @@ func sendCtrlC(pid int) error {
 	exitCode := kamikaze.ProcessState.ExitCode()
 	if exitCode != STATUS_CONTROL_C_EXIT {
 		return errors.New("Kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
+	}
+
+	// Start a process to attach to console of the target process
+	// and write a message to it's input using the -msg flag.
+	// Such proxy process is required for the same reason as above.
+	// See /internal/send_message/send_message.go for the source code.
+	if msg != "" {
+		sendMsg := exec.Command("D:\\Projects\\terminator\\assets\\send_message.exe", "-pid", fmt.Sprint(pid), "-msg", msg)
+		attr = syscall.SysProcAttr{}
+		attr.CreationFlags |= windows.DETACHED_PROCESS
+		attr.NoInheritHandles = true
+		sendMsg.SysProcAttr = &attr
+		err = sendMsg.Run()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
