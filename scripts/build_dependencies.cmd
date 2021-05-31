@@ -4,11 +4,7 @@ ChCp 65001 >Nul
 Cls
 
 :: Build internal dependencies
-PushD "..\internal\kamikaze"
-Call ".\build.cmd"
-PopD
-
-PushD "..\internal\send_message"
+PushD "..\internal\proxy"
 Call ".\build.cmd"
 PopD
 
