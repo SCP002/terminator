@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("..\\..\\assets\\sample-executable.cmd")
+	cmd := exec.Command("..\\sample-executable.cmd")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
