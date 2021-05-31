@@ -24,6 +24,6 @@ Set GOOS=windows
 Set GOARCH=amd64
 go build -o .\terminator_separate_batch_x64.exe terminator_separate_batch.go
 
-Echo Done. Press any key to exit...
+Echo Build done. Press any key to continue...
 Pause >Nul
 Exit /B 0
