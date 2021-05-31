@@ -16,7 +16,7 @@ func main() {
 
 	err := cmd.Start()
 	if err != nil {
-		panic(err)
+		fmt.Println("Start failed with:", err)
 	}
 
 	fmt.Println("Process started")
