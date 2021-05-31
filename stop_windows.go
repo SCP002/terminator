@@ -74,6 +74,9 @@ func isMainWindow(hwnd w32.HWND) bool {
 
 // getProxyPath returns proxy executable path. Writes a binary to a temporary
 // files folder if not exist already or if present version is lower.
+//
+// Using embed binary instead of calling it directly by relative path to
+// keep dependencies of a library user in a single file.
 // TODO: Add existence check and versioning.
 func getProxyPath() (string, error) {
 	path := os.TempDir() + "\\terminator_proxy.exe"
@@ -114,7 +117,7 @@ func sendCtrlC(pid int, msg string) error {
 		return err
 	}
 
-	// Start a proxy process to attach to console of the target process
+	// Start a kamikaze process to attach to console of the target process
 	// and send CTRL_C_EVENT.
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to
@@ -155,8 +158,8 @@ func sendCtrlC(pid int, msg string) error {
 		return errors.New("Kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
-	// Start a proxy process to attach to console of the target process
-	// and write a message to it's input using the -msg flag.
+	// Start a message sender process to attach to console of the target
+	// process and write a message to it's input using the -msg flag.
 	// Such proxy process is required for the same reason as above.
 	// See /internal/proxy/proxy.go for the source code.
 	if msg != "" {
@@ -167,7 +170,7 @@ func sendCtrlC(pid int, msg string) error {
 		sendMsg.SysProcAttr = &attr
 		err = sendMsg.Run()
 		if err != nil {
-			return err
+			return errors.New("Message sender process exited with error: " + err.Error())
 		}
 	}
 
