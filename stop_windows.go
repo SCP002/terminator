@@ -5,11 +5,15 @@ package terminator
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 
 	"github.com/gonutz/w32/v2"
 	"golang.org/x/sys/windows"
+
+	"github.com/SCP002/terminator/internal/proxy/proxybin"
+	"github.com/SCP002/terminator/internal/wincodes"
 )
 
 // stop tries to gracefully terminate process with the specified PID.
@@ -68,8 +72,21 @@ func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
+// getProxyPath returns proxy executable path. Writes a binary to a temporary
+// files folder if not exist already or if present version is lower.
+// TODO: Add existence check and versioning.
+func getProxyPath() (string, error) {
+	path := os.TempDir() + "\\terminator_proxy.exe"
+
+	err := os.WriteFile(path, proxybin.Bytes, 0755)
+	if err != nil {
+		return "", errors.New("Unable to write proxy binary: " + err.Error())
+	}
+
+	return path, nil
+}
+
 // TODO: Try to workaround / add note about child kill.
-// TODO: Embed dependencies (no absolute file paths)
 
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
 // specified PID.
@@ -82,7 +99,6 @@ func sendCtrlC(pid int, msg string) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
-	const STATUS_CONTROL_C_EXIT int = 3221225786
 
 	k32 := windows.MustLoadDLL("kernel32.dll")
 	defer k32.Release()
@@ -97,7 +113,7 @@ func sendCtrlC(pid int, msg string) error {
 		return err
 	}
 
-	// Start a kamikaze process to attach to console of the target process
+	// Start a proxy process to attach to console of the target process
 	// and send CTRL_C_EVENT.
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to
@@ -105,14 +121,18 @@ func sendCtrlC(pid int, msg string) error {
 	// unless this process was started from cmd.exe, the current console will be
 	// destroyed by the system, so, this process will lose it's original console
 	// (AllocConsole means no previous output, probably broken redirection etc).
-	// See /internal/kamikaze/kamikaze.go for the source code.
-	kamikaze := exec.Command("D:\\Projects\\terminator\\assets\\kamikaze.exe", "-pid", fmt.Sprint(pid))
+	// See /internal/proxy/proxy.go for the source code.
+	proxyPath, err := getProxyPath()
+	if err != nil {
+		return err
+	}
+	kamikaze := exec.Command(proxyPath, "-mode", "ctrlc", "-pid", fmt.Sprint(pid))
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.DETACHED_PROCESS
 	attr.NoInheritHandles = true
 	kamikaze.SysProcAttr = &attr
 	// We don't rely on error value from Run() as it will return error if exit code is not 0,
-	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT (3221225786).
+	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT.
 	_ = kamikaze.Run()
 
 	// Enable Ctrl + C processing back to make this program react on Ctrl + C
@@ -130,16 +150,16 @@ func sendCtrlC(pid int, msg string) error {
 	// Return error if kamikaze process failed to exit with STATUS_CONTROL_C_EXIT
 	// (target pid was not terminated with Ctrl + C).
 	exitCode := kamikaze.ProcessState.ExitCode()
-	if exitCode != STATUS_CONTROL_C_EXIT {
+	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
 		return errors.New("Kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
-	// Start a process to attach to console of the target process
+	// Start a proxy process to attach to console of the target process
 	// and write a message to it's input using the -msg flag.
 	// Such proxy process is required for the same reason as above.
-	// See /internal/send_message/send_message.go for the source code.
+	// See /internal/proxy/proxy.go for the source code.
 	if msg != "" {
-		sendMsg := exec.Command("D:\\Projects\\terminator\\assets\\send_message.exe", "-pid", fmt.Sprint(pid), "-msg", msg)
+		sendMsg := exec.Command(proxyPath, "-mode", "msg", "-pid", fmt.Sprint(pid), "-msg", msg)
 		attr = syscall.SysProcAttr{}
 		attr.CreationFlags |= windows.DETACHED_PROCESS
 		attr.NoInheritHandles = true
