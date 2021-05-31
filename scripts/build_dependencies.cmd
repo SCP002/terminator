@@ -8,4 +8,6 @@ PushD "..\internal\proxy"
 Call ".\build.cmd"
 PopD
 
+Echo Done. Press any key to exit...
+Pause >Nul
 Exit /B 0

@@ -24,4 +24,6 @@ Set GOOS=windows
 Set GOARCH=amd64
 go build -o .\terminator_basic_x64.exe terminator_basic.go
 
+Echo Done. Press any key to exit...
+Pause >Nul
 Exit /B 0
