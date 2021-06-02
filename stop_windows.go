@@ -12,22 +12,21 @@ import (
 	"github.com/gonutz/w32/v2"
 	"golang.org/x/sys/windows"
 
-	"github.com/SCP002/terminator/internal/proxy/proxybin"
-	"github.com/SCP002/terminator/internal/proxyver"
+	proxyBin "github.com/SCP002/terminator/internal/proxy/bin"
+	proxyVer "github.com/SCP002/terminator/internal/proxy/version"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
-// stop tries to gracefully terminate process with the specified PID.
-func stop(pid int) error {
-	// TODO: Pass msg from the top entry point?
+// stop tries to gracefully terminate the process.
+func stop(opts Options) error {
 	// TODO: Add If logic between closeWindow() and sendCtrlC() (just a parameter?)
 	// Calling closeWindow() to console application cause a few blank lines to appear in output.
 	// Calling sendCtrlC() to desktop application casue close button become unresponsive.
-	return sendCtrlC(pid, "Y\r\n")
+	return sendCtrlC(opts)
 }
 
 // TODO: Kill own / tree subprocess by iterating child (gopsutil.NewProcess + p.Children / TaskKill)?
-// closeWindow sends WM_CLOSE message to the main window of the process with the specified PID.
+// closeWindow sends WM_CLOSE message to the main window of the process.
 func closeWindow(pid int) error {
 	wnd, err := getWindow(pid)
 	if err != nil {
@@ -37,12 +36,12 @@ func closeWindow(pid int) error {
 	// WM_CLOSE returns 0 if appication processes this message, NOT if
 	// it did it's job successfully!
 	if r != 0 {
-		return errors.New("Failed to close window with PID " + fmt.Sprint(pid))
+		return errors.New("Failed to close the window with PID " + fmt.Sprint(pid))
 	}
 	return nil
 }
 
-// getWindow returns main window handle of the process with the specified PID.
+// getWindow returns main window handle of the process.
 //
 // Fails to detect own console window because if child process uses console of
 // it's parent, then child don't have it's own window.
@@ -68,7 +67,7 @@ func getWindow(pid int) (w32.HWND, error) {
 	}
 }
 
-// isMainWindow returns true if window with the specified handle is a main window.
+// isMainWindow returns true if a window with the specified handle is a main window.
 func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
@@ -79,7 +78,7 @@ func isMainWindow(hwnd w32.HWND) bool {
 // Using embed binary instead of calling it directly by relative path to
 // keep dependencies of a library user in a single file.
 func getProxyPath() (string, error) {
-	path := os.TempDir() + "\\terminator_proxy_" + proxyver.Version + ".exe"
+	path := os.TempDir() + "\\terminator_proxy_" + proxyVer.Str + ".exe"
 
 	// Binary is already exist.
 	_, err := os.Stat(path)
@@ -87,7 +86,7 @@ func getProxyPath() (string, error) {
 		return path, nil
 	}
 
-	err = os.WriteFile(path, proxybin.Bytes, 0755)
+	err = os.WriteFile(path, proxyBin.Bytes, 0755)
 	if err != nil {
 		return "", errors.New("Unable to write proxy binary: " + err.Error())
 	}
@@ -98,14 +97,11 @@ func getProxyPath() (string, error) {
 // FIXME: Run basic from bath throws "Stop failed with: exit status 3" (send msg to self).
 // TODO: Try to workaround / add note about child kill.
 
-// sendCtrlC sends CTRL_C_EVENT to the console of the process with the
-// specified PID.
-//
-// msg argument, if not empty, is a message to send to the input of the
-// target console after CTRL_C_EVENT is sent.
+// sendCtrlC sends CTRL_C_EVENT to the console the process
+// and writes an answer message if specified.
 //
 // Inspired by https://stackoverflow.com/a/15281070
-func sendCtrlC(pid int, msg string) error {
+func sendCtrlC(opts Options) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
@@ -123,7 +119,7 @@ func sendCtrlC(pid int, msg string) error {
 		return err
 	}
 
-	// Start a kamikaze process to attach to console of the target process
+	// Start a kamikaze process to attach to the console of the target process
 	// and send CTRL_C_EVENT.
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to
@@ -136,7 +132,7 @@ func sendCtrlC(pid int, msg string) error {
 	if err != nil {
 		return err
 	}
-	kamikaze := exec.Command(proxyPath, "-mode", "ctrlc", "-pid", fmt.Sprint(pid))
+	kamikaze := exec.Command(proxyPath, "-mode", "ctrlc", "-pid", fmt.Sprint(opts.Pid))
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.DETACHED_PROCESS
 	attr.NoInheritHandles = true
@@ -149,34 +145,33 @@ func sendCtrlC(pid int, msg string) error {
 	// accordingly again and prevent new child processes from inheriting the disabled state.
 	// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back
 	// again to prevent self kill if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is
-	// sent. We omit such delay as the call to kamikaze.Run() stops current goroutine until
-	// CTRL_C_EVENT is sent or process exited with unexpected exit code (CTRL_C_EVENT failed).
+	// sent. We omit such delay as the call to kamikaze.Run() stops the current goroutine until
+	// CTRL_C_EVENT is sent or the process exited with unexpected exit code (CTRL_C_EVENT failed).
 	k32Proc = k32.MustFindProc("SetConsoleCtrlHandler")
 	r1, _, err = k32Proc.Call(NULL, FALSE)
 	if r1 == 0 {
 		return err
 	}
 
-	// Return error if kamikaze process failed to exit with STATUS_CONTROL_C_EXIT
-	// (target pid was not terminated with Ctrl + C).
+	// Return error if the kamikaze process failed to exit with STATUS_CONTROL_C_EXIT
+	// (target was not terminated with Ctrl + C).
 	exitCode := kamikaze.ProcessState.ExitCode()
 	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
-		return errors.New("Kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
+		return errors.New("The kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
-	// Start a message sender process to attach to console of the target
+	// Start a message sender process to attach to the console of the target
 	// process and write a message to it's input using the -msg flag.
 	// Such proxy process is required for the same reason as above.
-	// See /internal/proxy/proxy.go for the source code.
-	if msg != "" {
-		sendMsg := exec.Command(proxyPath, "-mode", "msg", "-pid", fmt.Sprint(pid), "-msg", msg)
+	if opts.Answer != "" {
+		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(opts.Pid), "-msg", opts.Answer)
 		attr = syscall.SysProcAttr{}
 		attr.CreationFlags |= windows.DETACHED_PROCESS
 		attr.NoInheritHandles = true
-		sendMsg.SysProcAttr = &attr
-		err = sendMsg.Run()
+		msgSender.SysProcAttr = &attr
+		err = msgSender.Run()
 		if err != nil {
-			return errors.New("Message sender process exited with error: " + err.Error())
+			return errors.New("The message sender process exited with error: " + err.Error())
 		}
 	}
 

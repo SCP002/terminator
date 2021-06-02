@@ -4,13 +4,17 @@ package terminator
 
 import "syscall"
 
-// stop tries to gracefully terminate process with the specified PID
-// by sending SIGTERM to the process or to the process group if such
-// exits.
-func stop(pid int) {
-	pgid, err := syscall.Getpgid(pid)
-	if err == nil {
-		pid = -pgid
+// stop tries to gracefully terminate the process by sending SIGTERM to it
+// or to a process group if such exits and the Tree option is "true".
+func stop(opts Options) error {
+	if opts.Tree {
+		pgid, err := syscall.Getpgid(opts.Pid)
+		if err == nil {
+			opts.Pid = -pgid
+		}
 	}
-	syscall.Kill(pid, syscall.SIGTERM)
+	err := syscall.Kill(opts.Pid, syscall.SIGTERM)
+	if err != nil {
+		return err
+	}
 }

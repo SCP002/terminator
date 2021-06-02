@@ -1,7 +1,7 @@
 // +build windows
 // +build amd64
 
-package proxybin
+package bin
 
 import _ "embed"
 

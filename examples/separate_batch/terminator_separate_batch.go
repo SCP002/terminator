@@ -29,7 +29,14 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	err = terminator.Stop(cmd.Process.Pid, false)
+	opts := terminator.Options{
+		Pid:          cmd.Process.Pid,
+		IgnoreAbsent: false,
+		Tree:         true,
+		Timeout:      5000,
+		Answer:       "Y\r\n",
+	}
+	err = terminator.Stop(opts)
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}

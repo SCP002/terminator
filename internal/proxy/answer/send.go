@@ -1,4 +1,4 @@
-package message
+package answer
 
 import (
 	"os"
@@ -36,7 +36,7 @@ type (
 	}
 )
 
-// Send sends a message to the input of the target console.
+// Send sends an answer to the input of the target console.
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows,
 	// using it as a default value check.
@@ -69,7 +69,7 @@ func Send(pid int, msg string) {
 	// Regain standard IO handles after AttachConsole.
 	initConsoleHandles()
 
-	// Write message to the current console's input.
+	// Write the message to the current console's input.
 	inpRecList, err := strToInputRecords(msg)
 	if err != nil {
 		os.Exit(codes.ConvertMsgFailed)
@@ -79,10 +79,10 @@ func Send(pid int, msg string) {
 	var toWrite uint32 = uint32(len(inpRecList))
 	r1, _, _ = k32Proc.Call(
 		os.Stdin.Fd(),
-		// Actually passing the whole slice. Should be [0] due the way syscall works.
+		// Actually passing the whole slice. Must be [0] due the way syscall works.
 		uintptr(unsafe.Pointer(&inpRecList[0])),
 		uintptr(toWrite),
-		// A pointer the number of input records actually written. Not using it (placeholder).
+		// A pointer to the number of input records actually written. Not using it (placeholder).
 		uintptr(unsafe.Pointer(&written)),
 	)
 	if r1 == 0 {
@@ -90,7 +90,7 @@ func Send(pid int, msg string) {
 	}
 }
 
-// strToInputRecords converts string into a slice of inputRecord, see
+// strToInputRecords converts a string into a slice of inputRecord, see
 // https://docs.microsoft.com/en-us/windows/console/input-record-str.
 func strToInputRecords(msg string) ([]inputRecord, error) {
 	records := []inputRecord{}

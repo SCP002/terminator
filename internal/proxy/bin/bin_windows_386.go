@@ -1,7 +1,7 @@
 // +build windows
 // +build 386
 
-package proxybin
+package bin
 
 import _ "embed"
 
