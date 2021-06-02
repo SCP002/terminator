@@ -51,7 +51,7 @@ func Send(pid int) {
 
 	// Send Ctrl + C signal to the current console process group.
 	k32Proc = k32.MustFindProc("GenerateConsoleCtrlEvent")
-	// Not using CTRL_BREAK_EVENT (which can't be ignored) or else, if 
+	// Not using CTRL_BREAK_EVENT (which can't be ignored) or else, if
 	// parent process shares the same console with this one, it
 	// will stop the parent and SetConsoleCtrlHandler can't prevent it.
 	// Parameter is 0 (all processes attached to the current console) but not

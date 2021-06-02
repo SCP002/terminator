@@ -27,7 +27,7 @@ func main() {
 	flag.StringVar(&mode, "mode", "", "Work mode ('ctrlc' or 'answer')")
 	var pid int
 	flag.IntVar(&pid, "pid", -1, "Process identifier of the console to attach to")
-	// A message must end with a Windows newline sequence ("\r\n") to be sent.
+	// The message must end with a Windows newline sequence ("\r\n") to be sent.
 	var msg string
 	flag.StringVar(&msg, "msg", "", "A message to send to StdIn")
 	flag.Parse()
