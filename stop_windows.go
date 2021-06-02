@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/SCP002/terminator/internal/proxy/proxybin"
+	"github.com/SCP002/terminator/internal/proxyver"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
@@ -73,15 +74,20 @@ func isMainWindow(hwnd w32.HWND) bool {
 }
 
 // getProxyPath returns proxy executable path. Writes a binary to a temporary
-// files folder if not exist already or if present version is lower.
+// files folder if not exist already or if present version is different.
 //
 // Using embed binary instead of calling it directly by relative path to
 // keep dependencies of a library user in a single file.
-// TODO: Add existence check and versioning.
 func getProxyPath() (string, error) {
-	path := os.TempDir() + "\\terminator_proxy.exe"
+	path := os.TempDir() + "\\terminator_proxy_" + proxyver.Version + ".exe"
 
-	err := os.WriteFile(path, proxybin.Bytes, 0755)
+	// Binary is already exist.
+	_, err := os.Stat(path)
+	if err == nil {
+		return path, nil
+	}
+
+	err = os.WriteFile(path, proxybin.Bytes, 0755)
 	if err != nil {
 		return "", errors.New("Unable to write proxy binary: " + err.Error())
 	}
@@ -89,7 +95,7 @@ func getProxyPath() (string, error) {
 	return path, nil
 }
 
-// FIXME: Run basic from bath throws "Stop failed with: exit status 3".
+// FIXME: Run basic from bath throws "Stop failed with: exit status 3" (send msg to self).
 // TODO: Try to workaround / add note about child kill.
 
 // sendCtrlC sends CTRL_C_EVENT to the console of the process with the
