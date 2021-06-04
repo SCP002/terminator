@@ -27,7 +27,7 @@ func main() {
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
-		Answer:       "Y\r\n",
+		Answer:       "",
 	}
 	err = terminator.Stop(opts)
 	if err != nil {

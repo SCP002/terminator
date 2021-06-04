@@ -94,7 +94,6 @@ func getProxyPath() (string, error) {
 	return path, nil
 }
 
-// FIXME: Run basic from bath throws "Stop failed with: exit status 3" (send msg to self).
 // TODO: Try to workaround / add note about child kill.
 
 // sendCtrlC sends CTRL_C_EVENT to the console the process
