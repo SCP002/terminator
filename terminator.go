@@ -14,6 +14,7 @@ import (
 // Options respresents options to stop a process.
 type Options struct {
 	Pid          int    // Identifier of the process to stop.
+	Console      bool   // Is a console process?
 	IgnoreAbsent bool   // Do not return error if process is not running (nothing to stop)?
 	Tree         bool   // Stop the specified process and any child processes which were started by it?
 	Timeout      int    // Time in milliseconds allotted for the process to stop gracefully before it get killed.

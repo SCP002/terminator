@@ -24,6 +24,7 @@ func main() {
 
 	opts := terminator.Options{
 		Pid:          cmd.Process.Pid,
+		Console:      true,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,

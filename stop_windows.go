@@ -19,10 +19,13 @@ import (
 
 // stop tries to gracefully terminate the process.
 func stop(opts Options) error {
-	// TODO: Add If logic between closeWindow() and sendCtrlC() (just a parameter?)
-	// Calling closeWindow() to console application cause a few blank lines to appear in output.
-	// Calling sendCtrlC() to desktop application casue close button become unresponsive.
-	return sendCtrlC(opts)
+	if opts.Console {
+		// Calling sendCtrlC() to desktop application casue close button become unresponsive.
+		return sendCtrlC(opts)
+	} else {
+		// Calling closeWindow() to console application cause a few blank lines to appear in output.
+		return closeWindow(opts.Pid)
+	}
 }
 
 // TODO: Kill own / tree subprocess by iterating child (gopsutil.NewProcess + p.Children / TaskKill)?
@@ -45,6 +48,7 @@ func closeWindow(pid int) error {
 //
 // Fails to detect own console window because if child process uses console of
 // it's parent, then child don't have it's own window.
+// TODO: https://docs.microsoft.com/en-us/windows/console/getconsoleprocesslist + update gist?
 //
 // Inspired by https://stackoverflow.com/a/21767578
 func getWindow(pid int) (w32.HWND, error) {
