@@ -11,7 +11,7 @@ import (
 
 /*
 	Work modes:
-	"ctrlc": Send Ctrl + C signal to a process and terminates with it.
+	"ctrlc": Sends Ctrl + C signal to a process and terminates with it.
 	"answer": Writes a message to the standard input of a process.
 
 	Meant to be built with -ldflags -H=windowsgui build options to

@@ -18,7 +18,7 @@ const (
 	EnableCtrlCFailed int = 7 // SetConsoleCtrlHandler failed.
 	SendCtrlCFailed   int = 8 // GenerateConsoleCtrlEvent failed.
 
-	// "message" package.
+	// "answer" package.
 
 	NoMessage int = 9 // Empty or no message specified.
 
