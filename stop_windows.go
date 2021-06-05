@@ -17,13 +17,19 @@ import (
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
+// Dll files.
+
+var (
+	k32 = windows.NewLazyDLL("kernel32.dll")
+)
+
 // stop tries to gracefully terminate the process.
 func stop(opts Options) error {
 	if opts.Console {
-		// Calling sendCtrlC() to desktop application casue close button become unresponsive.
+		// Calling sendCtrlC() for desktop application casue close button become unresponsive.
 		return sendCtrlC(opts)
 	} else {
-		// Calling closeWindow() to console application cause a few blank lines to appear in output.
+		// Calling closeWindow() for console application cause a few blank lines to appear in output.
 		return closeWindow(opts.Pid)
 	}
 }
@@ -109,14 +115,11 @@ func sendCtrlC(opts Options) error {
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
 
-	k32 := windows.MustLoadDLL("kernel32.dll")
-	defer k32.Release()
-
 	// Disable Ctrl + C processing. If we don't disable it here, then
 	// despite the fact we're enabling it in Another Process later, if the
 	// target process is using the same console as the current process, our
 	// program will terminate itself.
-	k32Proc := k32.MustFindProc("SetConsoleCtrlHandler")
+	k32Proc := k32.NewProc("SetConsoleCtrlHandler")
 	r1, _, err := k32Proc.Call(NULL, TRUE)
 	if r1 == 0 {
 		return err
@@ -150,7 +153,7 @@ func sendCtrlC(opts Options) error {
 	// again to prevent self kill if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is
 	// sent. We omit such delay as the call to kamikaze.Run() stops the current goroutine until
 	// CTRL_C_EVENT is sent or the process exited with unexpected exit code (CTRL_C_EVENT failed).
-	k32Proc = k32.MustFindProc("SetConsoleCtrlHandler")
+	k32Proc = k32.NewProc("SetConsoleCtrlHandler")
 	r1, _, err = k32Proc.Call(NULL, FALSE)
 	if r1 == 0 {
 		return err

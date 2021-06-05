@@ -23,11 +23,10 @@ func Send(pid int) {
 		os.Exit(codes.WrongPid)
 	}
 
-	k32 := windows.MustLoadDLL("kernel32.dll")
-	defer k32.Release()
+	k32 := windows.NewLazyDLL("kernel32.dll")
 
 	// Attach to the target process console (form a console process group).
-	k32Proc := k32.MustFindProc("AttachConsole")
+	k32Proc := k32.NewProc("AttachConsole")
 	r1, _, err := k32Proc.Call(uintptr(pid))
 	if r1 == 0 {
 		if err == windows.ERROR_ACCESS_DENIED {
@@ -43,14 +42,14 @@ func Send(pid int) {
 	}
 
 	// Enable Ctrl + C processing (just in case).
-	k32Proc = k32.MustFindProc("SetConsoleCtrlHandler")
+	k32Proc = k32.NewProc("SetConsoleCtrlHandler")
 	r1, _, _ = k32Proc.Call(NULL, FALSE)
 	if r1 == 0 {
 		os.Exit(codes.EnableCtrlCFailed)
 	}
 
 	// Send Ctrl + C signal to the current console process group.
-	k32Proc = k32.MustFindProc("GenerateConsoleCtrlEvent")
+	k32Proc = k32.NewProc("GenerateConsoleCtrlEvent")
 	// Not using CTRL_BREAK_EVENT (which can't be ignored) or else, if
 	// parent process shares the same console with this one, it
 	// will stop the parent and SetConsoleCtrlHandler can't prevent it.

@@ -9,12 +9,6 @@ import (
 	"github.com/SCP002/terminator/internal/proxy/codes"
 )
 
-// Windows constants.
-const (
-	// https://docs.microsoft.com/en-us/windows/console/input-record-str#members.
-	keyEvent uint16 = 0x0001
-)
-
 // Windows types.
 //
 // Inspired by https://github.com/Azure/go-ansiterm/blob/master/winterm/api.go.
@@ -36,6 +30,12 @@ type (
 	}
 )
 
+// Windows constants.
+const (
+	// https://docs.microsoft.com/en-us/windows/console/input-record-str#members.
+	keyEvent uint16 = 0x0001
+)
+
 // Send sends an answer to the input of the target console.
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows,
@@ -47,11 +47,10 @@ func Send(pid int, msg string) {
 		os.Exit(codes.NoMessage)
 	}
 
-	k32 := windows.MustLoadDLL("kernel32.dll")
-	defer k32.Release()
+	k32 := windows.NewLazyDLL("kernel32.dll")
 
 	// Attach to the target process console.
-	k32Proc := k32.MustFindProc("AttachConsole")
+	k32Proc := k32.NewProc("AttachConsole")
 	r1, _, err := k32Proc.Call(uintptr(pid))
 	if r1 == 0 {
 		if err == windows.ERROR_ACCESS_DENIED {
@@ -74,7 +73,7 @@ func Send(pid int, msg string) {
 	if err != nil {
 		os.Exit(codes.ConvertMsgFailed)
 	}
-	k32Proc = k32.MustFindProc("WriteConsoleInputW")
+	k32Proc = k32.NewProc("WriteConsoleInputW")
 	var written uint32 = 0
 	var toWrite uint32 = uint32(len(inpRecList))
 	r1, _, _ = k32Proc.Call(
