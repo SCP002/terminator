@@ -77,6 +77,11 @@ func getWindow(pid int) (w32.HWND, error) {
 	}
 }
 
+// isMainWindow returns true if a window with the specified handle is a main window.
+func isMainWindow(hwnd w32.HWND) bool {
+	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
+}
+
 // isAttachedToCaller returns true if the given PID is attached
 // to the current console.
 func isAttachedToCaller(pid int) (bool, error) {
@@ -119,11 +124,6 @@ func getConsolePids(pidsLen int) ([]uint32, error) {
 		// Call self again with the exact capacity.
 		return getConsolePids(int(r1))
 	}
-}
-
-// isMainWindow returns true if a window with the specified handle is a main window.
-func isMainWindow(hwnd w32.HWND) bool {
-	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
 // getProxyPath returns proxy executable path. Writes a binary to a temporary
