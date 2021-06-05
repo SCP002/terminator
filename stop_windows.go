@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"unsafe"
 
 	"github.com/gonutz/w32/v2"
 	"golang.org/x/sys/windows"
@@ -52,11 +53,7 @@ func closeWindow(pid int) error {
 
 // getWindow returns main window handle of the process.
 //
-// Fails to detect own console window because if child process uses console of
-// it's parent, then child don't have it's own window.
-// TODO: https://docs.microsoft.com/en-us/windows/console/getconsoleprocesslist + update gist?
-//
-// Inspired by https://stackoverflow.com/a/21767578
+// Inspired by https://stackoverflow.com/a/21767578.
 func getWindow(pid int) (w32.HWND, error) {
 	var wnd w32.HWND
 	w32.EnumWindows(func(hwnd w32.HWND) bool {
@@ -73,7 +70,54 @@ func getWindow(pid int) (w32.HWND, error) {
 	if wnd != 0 {
 		return wnd, nil
 	} else {
+		if attached, _ := isAttachedToCaller(pid); attached {
+			return w32.GetConsoleWindow(), nil
+		}
 		return wnd, errors.New("No window found for PID " + fmt.Sprint(pid))
+	}
+}
+
+// isAttachedToCaller returns true if the given PID is attached
+// to the current console.
+func isAttachedToCaller(pid int) (bool, error) {
+	pids, err := getConsolePids(1)
+	if err != nil {
+		return false, err
+	}
+	for _, currentPid := range pids {
+		if currentPid == uint32(pid) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// getConsolePids returns a slice of PID's attached to
+// the current console.
+//
+// pidsLen parameter - the maximum number of PID's that can be stored in buffer.
+// Must be > 0. Can be increased automatically (safe to pass 1).
+//
+// See https://docs.microsoft.com/en-us/windows/console/getconsoleprocesslist.
+func getConsolePids(pidsLen int) ([]uint32, error) {
+	k32Proc := k32.NewProc("GetConsoleProcessList")
+
+	pids := make([]uint32, pidsLen)
+	r1, _, err := k32Proc.Call(
+		// Actually passing the whole slice. Must be [0] due the way syscall works.
+		uintptr(unsafe.Pointer(&pids[0])),
+		uintptr(pidsLen),
+	)
+	if r1 == 0 {
+		return pids, err
+	}
+	if r1 <= uintptr(pidsLen) {
+		// Success, return the slice.
+		return pids, nil
+	} else {
+		// The initial buffer was too small.
+		// Call self again with the exact capacity.
+		return getConsolePids(int(r1))
 	}
 }
 
