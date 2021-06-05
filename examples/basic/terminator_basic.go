@@ -28,6 +28,12 @@ func main() {
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
+		// If a batch executable runs in the same console as a caller,
+		// prompt is skipped automatically (no need for an answer).
+		// If this program itself is launched from a batch file
+		// (e.g. run.cmd), prompt appears After this program ends,
+		// thus answering is beyond the scope of this program
+		// (no sense in answering).
 		Answer:       "",
 	}
 	err = terminator.Stop(opts)
