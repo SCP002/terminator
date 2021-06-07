@@ -6,5 +6,6 @@ package wincodes
 // Windows exit codes.
 
 const (
-	STATUS_CONTROL_C_EXIT int = 3221225786 // The application terminated as a result of a Ctrl + C. x64 value.
+	// The application has been terminated as a result of a Ctrl + C or Ctrl + Break. x64 value.
+	STATUS_CONTROL_C_EXIT int = 3221225786
 )
