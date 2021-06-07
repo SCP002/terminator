@@ -13,27 +13,28 @@ const (
 	ProcessDoesNotExist   int = 5 // Target process does not exist.
 	AttachFailed          int = 6 // AttachConsole failed for an unknown reason.
 
-	// "event" package.
+	// "signal" package.
 
-	EnableCtrlCFailed int = 7 // SetConsoleCtrlHandler failed.
-	SendCtrlCFailed   int = 8 // GenerateConsoleCtrlEvent failed.
+	WrongSig          int = 7 // Wrong signal. Either not specified or invalid.
+	EnableCtrlCFailed int = 8 // SetConsoleCtrlHandler failed.
+	SendSigFailed     int = 9 // GenerateConsoleCtrlEvent failed.
 
 	// "answer" package.
 
-	NoMessage int = 9 // Empty or no message specified.
+	NoMessage int = 10 // Empty or no message specified.
 
-	GetStdInHandleFailed  int = 10 // Failed to retrieve standard input handler.
-	GetStdOutHandleFailed int = 11 // Failed to retrieve standard output handler.
-	GetStdErrHandleFailed int = 12 // Failed to retrieve standard error handler.
+	GetStdInHandleFailed  int = 11 // Failed to retrieve standard input handler.
+	GetStdOutHandleFailed int = 12 // Failed to retrieve standard output handler.
+	GetStdErrHandleFailed int = 13 // Failed to retrieve standard error handler.
 
-	MakeStdInFileFailed  int = 13 // Failed to create a new file for standard input.
-	MakeStdOutFileFailed int = 14 // Failed to create a new file for standard output.
-	MakeStdErrFileFailed int = 15 // Failed to create a new file for standard error.
+	MakeStdInFileFailed  int = 14 // Failed to create a new file for standard input.
+	MakeStdOutFileFailed int = 15 // Failed to create a new file for standard output.
+	MakeStdErrFileFailed int = 16 // Failed to create a new file for standard error.
 
-	SetStdInHandleFailed  int = 16 // Failed to set standard input handler.
-	SetStdOutHandleFailed int = 17 // Failed to set standard output handler.
-	SetStdErrHandleFailed int = 18 // Failed to set standard error handler.
+	SetStdInHandleFailed  int = 17 // Failed to set standard input handler.
+	SetStdOutHandleFailed int = 18 // Failed to set standard output handler.
+	SetStdErrHandleFailed int = 19 // Failed to set standard error handler.
 
-	ConvertMsgFailed int = 19 // Failed to convert string message to an array of inputRecord.
-	WriteMsgFailed   int = 20 // Failed to write an array of inputRecord to the current console's input.
+	ConvertMsgFailed int = 20 // Failed to convert string message to an array of inputRecord.
+	WriteMsgFailed   int = 21 // Failed to write an array of inputRecord to the current console's input.
 )
