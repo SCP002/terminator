@@ -1,4 +1,4 @@
-package event
+package signal
 
 import (
 	"os"
@@ -15,12 +15,15 @@ const (
 	FALSE uintptr = 0
 )
 
-// Send sends CTRL_C_EVENT to the console of the process.
-func Send(pid int) {
+// Send sends a control signal to the console of the process.
+func Send(pid int, sig int) {
 	// Negative process identifiers are disallowed in Windows,
 	// using it as a default value check.
 	if pid == -1 {
 		os.Exit(codes.WrongPid)
+	}
+	if sig != windows.CTRL_C_EVENT && sig != windows.CTRL_BREAK_EVENT {
+		os.Exit(codes.WrongSig)
 	}
 
 	k32 := windows.NewLazyDLL("kernel32.dll")
@@ -41,24 +44,24 @@ func Send(pid int) {
 		os.Exit(codes.AttachFailed)
 	}
 
-	// Enable Ctrl + C processing (just in case).
-	k32Proc = k32.NewProc("SetConsoleCtrlHandler")
-	r1, _, _ = k32Proc.Call(NULL, FALSE)
-	if r1 == 0 {
-		os.Exit(codes.EnableCtrlCFailed)
+	if sig == windows.CTRL_C_EVENT {
+		// Enable Ctrl + C processing (in case if the current console
+		// had it disabled).
+		k32Proc = k32.NewProc("SetConsoleCtrlHandler")
+		r1, _, _ = k32Proc.Call(NULL, FALSE)
+		if r1 == 0 {
+			os.Exit(codes.EnableCtrlCFailed)
+		}
 	}
 
-	// Send Ctrl + C signal to the current console process group.
+	// Send the control signal to the current console process group.
 	k32Proc = k32.NewProc("GenerateConsoleCtrlEvent")
-	// Not using CTRL_BREAK_EVENT (which can't be ignored) or else, if
-	// parent process shares the same console with this one, it
-	// will stop the parent and SetConsoleCtrlHandler can't prevent it.
 	// Parameter is 0 (all processes attached to the current console) but not
 	// "pid", or else it will fail to send the signal to a consoles separate
 	// from the current one.
-	r1, _, _ = k32Proc.Call(windows.CTRL_C_EVENT, uintptr(0))
+	r1, _, _ = k32Proc.Call(uintptr(sig), uintptr(0))
 	if r1 == 0 {
-		os.Exit(codes.SendCtrlCFailed)
+		os.Exit(codes.SendSigFailed)
 	}
 
 	// If this program runs properly, it should never reach this point, rather

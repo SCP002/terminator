@@ -6,12 +6,12 @@ import (
 
 	"github.com/SCP002/terminator/internal/proxy/answer"
 	"github.com/SCP002/terminator/internal/proxy/codes"
-	"github.com/SCP002/terminator/internal/proxy/event"
+	"github.com/SCP002/terminator/internal/proxy/signal"
 )
 
 /*
 	Work modes:
-	"ctrlc": Sends Ctrl + C signal to a process and terminates with it.
+	"signal": Sends a signal to a process and terminates with it.
 	"answer": Writes a message to the standard input of a process.
 
 	Meant to be built with -ldflags -H=windowsgui build options to
@@ -24,16 +24,18 @@ func main() {
 	// attach to the foreign one. Usage messages are placeholders intended to
 	// be read here.
 	var mode string
-	flag.StringVar(&mode, "mode", "", "Work mode ('ctrlc' or 'answer')")
+	flag.StringVar(&mode, "mode", "", "Work mode ('signal' or 'answer')")
 	var pid int
 	flag.IntVar(&pid, "pid", -1, "Process identifier of the console to attach to")
+	var sig int
+	flag.IntVar(&sig, "sig", -1, "A control signal type")
 	// The message must end with a Windows newline sequence ("\r\n") to be sent.
 	var msg string
 	flag.StringVar(&msg, "msg", "", "A message to send to StdIn")
 	flag.Parse()
 
-	if mode == "ctrlc" {
-		event.Send(pid)
+	if mode == "signal" {
+		signal.Send(pid, sig)
 	} else if mode == "answer" {
 		answer.Send(pid, msg)
 	} else {
