@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/SCP002/terminator"
+	"golang.org/x/sys/windows"
 )
 
 func main() {
 	cmd := exec.Command("..\\sample_executable.cmd")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 
 	err := cmd.Start()
 	if err != nil {
@@ -25,15 +27,10 @@ func main() {
 	opts := terminator.Options{
 		Pid:          cmd.Process.Pid,
 		Console:      true,
+		Signal:       windows.CTRL_C_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
-		// If a batch executable runs in the same console as a caller,
-		// prompt is skipped automatically (no need for an answer).
-		// If this program itself is launched from a batch file
-		// (e.g. run.cmd), prompt appears After this program ends,
-		// thus answering is beyond the scope of this program
-		// (no sense in answering).
 		Answer:       "",
 	}
 	err = terminator.Stop(opts)

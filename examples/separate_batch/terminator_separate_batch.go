@@ -15,6 +15,7 @@ func main() {
 	cmd := exec.Command("..\\sample_executable.cmd")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.CREATE_NEW_CONSOLE
@@ -32,6 +33,7 @@ func main() {
 	opts := terminator.Options{
 		Pid:          cmd.Process.Pid,
 		Console:      true,
+		Signal:       windows.CTRL_C_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
