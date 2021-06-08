@@ -21,11 +21,11 @@ type Options struct {
 
 	// Signal type to send if Console is set to "true". 0 = CTRL_C_EVENT, 1 = CTRL_BREAK_EVENT.
 	//
-	// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and
-	// SysProcAttr.NoInheritHandles is set to "false", CTRL_C_EVENT will have no effect.
+	// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set
+	// to "false", CTRL_C_EVENT will have no effect.
 	//
-	// If target process shares the same console with this one, CTRL_BREAK_EVENT
-	// will stop this process and SetConsoleCtrlHandler can't prevent it.
+	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
+	// SetConsoleCtrlHandler can't prevent it.
 	Signal int
 
 	// Do not return error if process is not running (nothing to stop)?
@@ -43,10 +43,8 @@ type Options struct {
 	//
 	// If StdIn is redirected, the prompt of a batch executable is skipped automatically (no need for an answer).
 	//
-	// If this program itself is launched from a batch file
-	// (e.g. run.cmd), prompt appears After this program ends,
-	// thus answering is beyond the scope of this program
-	// (no sense in answering).
+	// If this program itself is launched from a batch file (e.g. run.cmd), prompt appears After this program ends, thus
+	// answering is beyond the scope of this program (no sense in it).
 	Answer string
 }
 

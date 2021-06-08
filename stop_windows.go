@@ -37,8 +37,7 @@ func stop(opts Options) error {
 
 // TODO: Try to workaround / add note about child kill.
 
-// sendSig sends a control signal to the console the process
-// and writes an answer message if specified.
+// sendSig sends a control signal to the console the process and writes an answer message if specified.
 //
 // Inspired by https://stackoverflow.com/a/15281070
 func sendSig(opts Options) error {
@@ -47,10 +46,9 @@ func sendSig(opts Options) error {
 	const FALSE uintptr = 0
 
 	if opts.Signal == windows.CTRL_C_EVENT {
-		// Disable Ctrl + C processing. If we don't disable it here, then
-		// despite the fact we're enabling it in Another Process later, if the
-		// target process is using the same console as the current process, our
-		// program will terminate itself.
+		// Disable Ctrl + C processing. If we don't disable it here, then despite the fact we're enabling it in Another
+		// Process later, if the target process is using the same console as the current process, our program will
+		// terminate itself.
 		k32Proc := k32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := k32Proc.Call(NULL, TRUE)
 		if r1 == 0 {
@@ -58,35 +56,37 @@ func sendSig(opts Options) error {
 		}
 	}
 
-	// Start a kamikaze process to attach to the console of the target process
-	// and send a signal.
+	// Start a kamikaze process to attach to the console of the target process and send a signal.
 	// Such proxy process is required because:
-	// If the target process has it's own, separate console, then to
-	// attach to that console we have to FreeConsole of this process first, so,
-	// unless this process was started from cmd.exe, the current console will be
-	// destroyed by the system, so, this process will lose it's original console
-	// (AllocConsole means no previous output, probably broken redirection etc).
+	// If the target process has it's own, separate console, then to attach to that console we have to FreeConsole of
+	// this process first, so, unless this process was started from cmd.exe, the current console will be destroyed by
+	// the system, so, this process will lose it's original console (AllocConsole means no previous output, probably
+	// broken redirection etc).
 	// See /internal/proxy/proxy.go for the source code.
 	proxyPath, err := getProxyPath()
 	if err != nil {
 		return err
 	}
-	kamikaze := exec.Command(proxyPath, "-mode", "signal", "-pid", fmt.Sprint(opts.Pid), "-sig", fmt.Sprint(opts.Signal))
+	kamikaze := exec.Command(proxyPath,
+		"-mode", "signal",
+		"-pid", fmt.Sprint(opts.Pid),
+		"-sig", fmt.Sprint(opts.Signal),
+	)
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.DETACHED_PROCESS
 	attr.NoInheritHandles = true
 	kamikaze.SysProcAttr = &attr
-	// We don't rely on error value from Run() as it will return error if exit code is not 0,
-	// but in our case, normal exit code is STATUS_CONTROL_C_EXIT (even for the CTRL_BREAK_EVENT).
+	// We don't rely on error value from Run() as it will return error if exit code is not 0, but in our case, normal
+	// exit code is STATUS_CONTROL_C_EXIT (even for the CTRL_BREAK_EVENT).
 	_ = kamikaze.Run()
 
 	if opts.Signal == windows.CTRL_C_EVENT {
-		// Enable Ctrl + C processing back to make this program react on Ctrl + C
-		// accordingly again and prevent new child processes from inheriting the disabled state.
-		// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back again
-		// to prevent self kill if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is sent.
-		// We omit such delay as the call to kamikaze.Run() stops the current goroutine until
-		// CTRL_C_EVENT is sent or the process exited with unexpected exit code (CTRL_C_EVENT failed).
+		// Enable Ctrl + C processing back to make this program react on Ctrl + C accordingly again and prevent new
+		// child processes from inheriting the disabled state.
+		// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back again to prevent self kill
+		// if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is sent.
+		// We omit such delay as the call to kamikaze.Run() stops the current goroutine until CTRL_C_EVENT is sent or
+		// the process exited with unexpected exit code (CTRL_C_EVENT failed).
 		k32Proc := k32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := k32Proc.Call(NULL, FALSE)
 		if r1 == 0 {
@@ -100,8 +100,8 @@ func sendSig(opts Options) error {
 		return errors.New("The kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
-	// Start a message sender process to attach to the console of the target
-	// process and write a message to it's input using the -msg flag.
+	// Start a message sender process to attach to the console of the target process and write a message to it's input
+	// using the -msg flag.
 	// Such proxy process is required for the same reason as above.
 	if opts.Answer != "" {
 		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(opts.Pid), "-msg", opts.Answer)
@@ -118,11 +118,11 @@ func sendSig(opts Options) error {
 	return nil
 }
 
-// getProxyPath returns proxy executable path. Writes a binary to a temporary
-// files folder if not exist already or if present version is different.
+// getProxyPath returns proxy executable path. Writes a binary to a temporary files folder if not exist already or if
+// present version is different.
 //
-// Using embed binary instead of calling it directly by relative path to
-// keep dependencies of a library user in a single file.
+// Using embed binary instead of calling it directly by relative path to keep dependencies of a library user in a single
+// file.
 func getProxyPath() (string, error) {
 	path := os.TempDir() + "\\terminator_proxy_" + proxyVer.Str + ".exe"
 
@@ -148,8 +148,7 @@ func closeWindow(pid int) error {
 		return err
 	}
 	r := w32.SendMessage(wnd, w32.WM_CLOSE, 0, 0)
-	// WM_CLOSE returns 0 if appication processes this message, NOT if
-	// it did it's job successfully!
+	// WM_CLOSE returns 0 if appication processes this message, NOT if it did it's job successfully!
 	if r != 0 {
 		return errors.New("Failed to close the window with PID " + fmt.Sprint(pid))
 	}
@@ -187,8 +186,7 @@ func isMainWindow(hwnd w32.HWND) bool {
 	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
-// isAttachedToCaller returns true if the given PID is attached
-// to the current console.
+// isAttachedToCaller returns true if the given PID is attached to the current console.
 func isAttachedToCaller(pid int) (bool, error) {
 	pids, err := getConsolePids(1)
 	if err != nil {
@@ -202,8 +200,7 @@ func isAttachedToCaller(pid int) (bool, error) {
 	return false, nil
 }
 
-// getConsolePids returns a slice of PID's attached to
-// the current console.
+// getConsolePids returns a slice of PID's attached to the current console.
 //
 // pidsLen parameter - the maximum number of PID's that can be stored in buffer.
 // Must be > 0. Can be increased automatically (safe to pass 1).
@@ -225,8 +222,7 @@ func getConsolePids(pidsLen int) ([]uint32, error) {
 		// Success, return the slice.
 		return pids, nil
 	} else {
-		// The initial buffer was too small.
-		// Call self again with the exact capacity.
+		// The initial buffer was too small. Call self again with the exact capacity.
 		return getConsolePids(int(r1))
 	}
 }

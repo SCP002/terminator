@@ -38,8 +38,7 @@ const (
 
 // Send sends an answer to the input of the target console.
 func Send(pid int, msg string) {
-	// Negative process identifiers are disallowed in Windows,
-	// using it as a default value check.
+	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
 		os.Exit(codes.WrongPid)
 	}
@@ -101,8 +100,7 @@ func strToInputRecords(msg string) ([]inputRecord, error) {
 		record := inputRecord{
 			eventType: keyEvent,
 			keyEvent: keyEventRecord{
-				// 1 = TRUE, the key is pressed.
-				// Can omit key release events.
+				// 1 = TRUE, the key is pressed. Can omit key release events.
 				keyDown:         1,
 				repeatCount:     1,
 				virtualKeyCode:  0,
