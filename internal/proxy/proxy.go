@@ -29,7 +29,6 @@ func main() {
 	flag.IntVar(&pid, "pid", -1, "Process identifier of the console to attach to")
 	var sig int
 	flag.IntVar(&sig, "sig", -1, "A control signal type")
-	// The message must end with a Windows newline sequence ("\r\n") to be sent.
 	var msg string
 	flag.StringVar(&msg, "msg", "", "A message to send to StdIn")
 	flag.Parse()

@@ -21,7 +21,7 @@ type Options struct {
 
 	// Signal type to send if Console is set to "true". 0 = CTRL_C_EVENT, 1 = CTRL_BREAK_EVENT.
 	//
-	// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and 
+	// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and
 	// SysProcAttr.NoInheritHandles is set to "false", CTRL_C_EVENT will have no effect.
 	//
 	// If target process shares the same console with this one, CTRL_BREAK_EVENT
@@ -39,8 +39,9 @@ type Options struct {
 
 	// If not empty, is a message to send to input of the target console after a signal is sent.
 	//
-	// If a batch executable runs in the same console as a caller,
-	// a prompt is skipped automatically (no need for an answer).
+	// It must end with a Windows newline sequence ("\r\n") to be sent.
+	//
+	// If StdIn is redirected, the prompt of a batch executable is skipped automatically (no need for an answer).
 	//
 	// If this program itself is launched from a batch file
 	// (e.g. run.cmd), prompt appears After this program ends,
