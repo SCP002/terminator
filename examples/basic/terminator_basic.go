@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"time"
 
 	"github.com/SCP002/terminator"
@@ -11,29 +9,23 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("..\\sample_executable.cmd")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	err := cmd.Start()
-	if err != nil {
-		fmt.Println("Start failed with:", err)
-	}
-
-	fmt.Println("Process started")
-	time.Sleep(2 * time.Second)
+	fmt.Print("The PID to terminate: ")
+	var pid int
+	fmt.Scanln(&pid)
+	fmt.Print("Is a console application (Yes = 1 / No = 0)?: ")
+	var isConsole bool
+	fmt.Scanln(&isConsole)
 
 	opts := terminator.Options{
-		Pid:          cmd.Process.Pid,
-		Console:      true,
+		Pid:          pid,
+		Console:      isConsole,
 		Signal:       windows.CTRL_C_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
-		Answer:       "Y\r\n",
+		Answer:       "",
 	}
-	err = terminator.Stop(opts)
+	err := terminator.Stop(opts)
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}
