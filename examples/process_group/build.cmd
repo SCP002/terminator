@@ -17,11 +17,11 @@ PopD
 :: Build x32
 Set GOOS=windows
 Set GOARCH=386
-go build -o .\terminator_separate_batch_x32.exe terminator_separate_batch.go
+go build -o .\terminator_process_group_x32.exe terminator_process_group.go
 
 :: Build x64
 Set GOOS=windows
 Set GOARCH=amd64
-go build -o .\terminator_separate_batch_x64.exe terminator_separate_batch.go
+go build -o .\terminator_process_group_x64.exe terminator_process_group.go
 
 Exit /B 0

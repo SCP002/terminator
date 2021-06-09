@@ -15,6 +15,6 @@ Call ".\build_dependencies.cmd"
 PopD
 
 :: Run
-go run terminator_separate_batch.go
+go run terminator_process_group.go
 
 Exit /B 0

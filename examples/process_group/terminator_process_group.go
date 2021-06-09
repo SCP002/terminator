@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("..\\sample_executable.cmd")
+	cmd := exec.Command("sample_process_group.cmd")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -33,7 +33,7 @@ func main() {
 	opts := terminator.Options{
 		Pid:          cmd.Process.Pid,
 		Console:      true,
-		Signal:       windows.CTRL_C_EVENT,
+		Signal:       windows.CTRL_BREAK_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
