@@ -17,6 +17,10 @@ type Options struct {
 	Pid int
 
 	// Is a console process?
+	//
+	// If true, send a Ctrl + C or Ctrl + Break signal. They can be caught as a SIGINT.
+	//
+	// If false, send a WM_CLOSE message (as if the user is closing the window). It can be caught as a SIGTERM.
 	Console bool
 
 	// Signal type to send if Console is set to "true". 0 = CTRL_C_EVENT, 1 = CTRL_BREAK_EVENT.
@@ -43,8 +47,8 @@ type Options struct {
 	//
 	// If StdIn is redirected, the prompt of a batch executable is skipped automatically (no need for an answer).
 	//
-	// If this program itself is launched from a batch file (e.g. run.cmd), prompt appears After this program ends, thus
-	// answering is beyond the scope of this program (no sense in it).
+	// If this program itself is launched from a batch file (e.g. run.cmd), the final prompt appears After this program
+	// ends, thus answering to it is beyond the scope of this program.
 	Answer string
 }
 
