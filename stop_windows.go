@@ -18,6 +18,9 @@ import (
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
+// TODO: Kill tree for console apps (gopsutil.NewProcess + p.Children + sendSig())?
+// TODO: Kill tree for GUI apps (gopsutil.NewProcess + p.Children + closeWindow() / TaskKill)?
+
 // Dll files.
 
 var (
@@ -35,8 +38,6 @@ func stop(opts Options) error {
 	}
 }
 
-// TODO: Try to workaround / add note about child kill.
-
 // sendSig sends a control signal to the console the process and writes an answer message if specified.
 //
 // Inspired by https://stackoverflow.com/a/15281070
@@ -47,7 +48,7 @@ func sendSig(opts Options) error {
 
 	if opts.Signal == windows.CTRL_C_EVENT {
 		// Disable Ctrl + C processing. If we don't disable it here, then despite the fact we're enabling it in Another
-		// Process later, if the target process is using the same console as the current process, our program will
+		// Process later, if the target process is using the same console as the current process, this program will
 		// terminate itself.
 		k32Proc := k32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := k32Proc.Call(NULL, TRUE)
@@ -60,7 +61,7 @@ func sendSig(opts Options) error {
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to attach to that console we have to FreeConsole of
 	// this process first, so, unless this process was started from cmd.exe, the current console will be destroyed by
-	// the system, so, this process will lose it's original console (AllocConsole means no previous output, probably
+	// the system, so, this process will lose it's original console (AllocConsole means lost previous output, probably
 	// broken redirection etc).
 	// See /internal/proxy/proxy.go for the source code.
 	proxyPath, err := getProxyPath()
@@ -77,7 +78,7 @@ func sendSig(opts Options) error {
 	attr.NoInheritHandles = true
 	kamikaze.SysProcAttr = &attr
 	// We don't rely on error value from Run() as it will return error if exit code is not 0, but in our case, normal
-	// exit code is STATUS_CONTROL_C_EXIT (even for the CTRL_BREAK_EVENT).
+	// exit code is STATUS_CONTROL_C_EXIT (even if CTRL_BREAK_EVENT was sent).
 	_ = kamikaze.Run()
 
 	if opts.Signal == windows.CTRL_C_EVENT {
@@ -140,7 +141,6 @@ func getProxyPath() (string, error) {
 	return path, nil
 }
 
-// TODO: Kill own / tree subprocess by iterating child (gopsutil.NewProcess + p.Children / TaskKill)?
 // closeWindow sends WM_CLOSE message to the main window of the process.
 func closeWindow(pid int) error {
 	wnd, err := getWindow(pid)
@@ -226,23 +226,3 @@ func getConsolePids(pidsLen int) ([]uint32, error) {
 		return getConsolePids(int(r1))
 	}
 }
-
-// func runTaskKill(pid int) error {
-// 	cmd := exec.Command("TaskKill", "/Pid", fmt.Sprint(pid), "/T")
-// 	cmd.Stdout = os.Stdout
-// 	cmd.Stderr = os.Stderr
-// 	return cmd.Run()
-// }
-
-// func enumThreadWindows(threadId uintptr, callback func(window w32.HWND) bool) bool {
-// 	u32 := syscall.NewLazyDLL("user32.dll")
-// 	u32Proc := u32.NewProc("EnumThreadWindows")
-// 	cb := syscall.NewCallback(func(w, _ uintptr) uintptr {
-// 		if callback(w32.HWND(w)) {
-// 			return 1
-// 		}
-// 		return 0
-// 	})
-// 	ret, _, _ := u32Proc.Call(threadId, cb, 0)
-// 	return ret != 0
-// }
