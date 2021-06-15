@@ -30,17 +30,15 @@ var (
 // stop tries to gracefully terminate the process.
 func stop(opts Options) error {
 	if opts.Console {
-		// Calling the sendSig() for desktop applications makes the close button unresponsive.
 		return sendSig(opts)
 	} else {
-		// Calling the closeWindow() for console applications causes a few blank lines to appear in output.
-		return closeWindow(opts.Pid)
+		return closeWindow(opts.Pid, false)
 	}
 }
 
 // sendSig sends a control signal to the console the process and writes an answer message if specified.
 //
-// Inspired by https://stackoverflow.com/a/15281070
+// Inspired by https://stackoverflow.com/a/15281070.
 func sendSig(opts Options) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
@@ -142,8 +140,10 @@ func getProxyPath() (string, error) {
 }
 
 // closeWindow sends WM_CLOSE message to the main window of the process.
-func closeWindow(pid int) error {
-	wnd, err := getWindow(pid)
+//
+// If "allowOwnConsole" is set to "true", allow to close own console window of the process.
+func closeWindow(pid int, allowOwnConsole bool) error {
+	wnd, err := getWindow(pid, allowOwnConsole)
 	if err != nil {
 		return err
 	}
@@ -157,8 +157,10 @@ func closeWindow(pid int) error {
 
 // getWindow returns main window handle of the process.
 //
+// If "allowOwnConsole" is set to "true", allow to return own console window of the process.
+//
 // Inspired by https://stackoverflow.com/a/21767578.
-func getWindow(pid int) (w32.HWND, error) {
+func getWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
 	var wnd w32.HWND
 	w32.EnumWindows(func(hwnd w32.HWND) bool {
 		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
@@ -174,8 +176,10 @@ func getWindow(pid int) (w32.HWND, error) {
 	if wnd != 0 {
 		return wnd, nil
 	} else {
-		if attached, _ := isAttachedToCaller(pid); attached {
-			return w32.GetConsoleWindow(), nil
+		if allowOwnConsole {
+			if attached, _ := isAttachedToCaller(pid); attached {
+				return w32.GetConsoleWindow(), nil
+			}
 		}
 		return wnd, errors.New("No window found for PID " + fmt.Sprint(pid))
 	}
