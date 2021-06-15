@@ -86,3 +86,35 @@ func Stop(opts Options) error {
 func IsRunning(pid int) (bool, error) {
 	return process.PidExists(int32(pid))
 }
+
+// getTree populates the "list" argument with gopsutil Process instances of all descendants of the specified process.
+//
+// The first element in the list is deepest descendant. The last one is a progenitor or closest child.
+//
+// If the "withRoot" argument is set to "true", include the root process.
+func getTree(pid int, list *[]*process.Process, withRoot bool) error {
+	proc, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return err
+	}
+	children, err := proc.Children()
+	if err != nil {
+		return err
+	}
+	// Iterate for each child process in reverse order.
+	for i := len(children) - 1; i >= 0; i-- {
+		child := children[i]
+		// Call self to collect descendants.
+		err := getTree(int(child.Pid), list, false)
+		if err != nil {
+			return err
+		}
+		// Add the child after it's descendants.
+		*list = append(*list, child)
+	}
+	// Add the root process to the end.
+	if withRoot {
+		*list = append(*list, proc)
+	}
+	return nil
+}
