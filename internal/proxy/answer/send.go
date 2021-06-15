@@ -88,7 +88,8 @@ func Send(pid int, msg string) {
 	}
 }
 
-// strToInputRecords converts a string into a slice of inputRecord, see
+// strToInputRecords converts a string into a slice of inputRecord, see:
+//
 // https://docs.microsoft.com/en-us/windows/console/input-record-str.
 func strToInputRecords(msg string) ([]inputRecord, error) {
 	records := []inputRecord{}
@@ -115,6 +116,7 @@ func strToInputRecords(msg string) ([]inputRecord, error) {
 }
 
 // initConsoleHandles initializes standard IO handles for the current console.
+//
 // Useful to call after AttachConsole or AllocConsole.
 func initConsoleHandles() {
 	// Retrieve standard handles.
