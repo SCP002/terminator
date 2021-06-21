@@ -86,6 +86,9 @@ func sendCtrlBreak(pid int, checkRun bool) error {
 
 // sendSig sends a control signal to the console process.
 //
+// Return value (error) is "nil" only if proxy process successfully sent the signal, but not necessary means that the
+// signal has been successfully received or processed.
+//
 // Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
 func sendSig(pid int, signal int) error {
 	const NULL uintptr = 0
