@@ -32,8 +32,6 @@ func main() {
 
 	opts := terminator.Options{
 		Pid:          cmd.Process.Pid,
-		Console:      true,
-		Signal:       windows.CTRL_BREAK_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
