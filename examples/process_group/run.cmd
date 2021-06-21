@@ -11,10 +11,10 @@ go mod tidy
 
 :: Build internal dependencies
 PushD "..\..\scripts"
-Call ".\build_dependencies.cmd"
+Call "build_dependencies.cmd"
 PopD
 
 :: Run
-go run terminator_process_group.go
+go run "terminator_process_group.go"
 
 Exit /B 0
