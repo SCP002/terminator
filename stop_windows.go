@@ -11,15 +11,13 @@ import (
 	"unsafe"
 
 	"github.com/gonutz/w32/v2"
+	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/windows"
 
 	proxyBin "github.com/SCP002/terminator/internal/proxy/bin"
 	proxyVer "github.com/SCP002/terminator/internal/proxy/version"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
-
-// TODO: Kill tree for console apps (gopsutil.NewProcess + p.Children + sendSig())?
-// TODO: Kill tree for GUI apps (gopsutil.NewProcess + p.Children + closeWindow() / TaskKill)?
 
 // Dll files.
 
@@ -29,22 +27,72 @@ var (
 
 // stop tries to gracefully terminate the process.
 func stop(opts Options) error {
-	if opts.Console {
-		return sendSig(opts)
-	} else {
-		return closeWindow(opts.Pid, false)
+	// Close each child.
+	if opts.Tree {
+		list := []*process.Process{}
+		err := GetTree(opts.Pid, &list, false)
+		if err != nil {
+			return err
+		}
+		for _, child := range list {
+			_ = sendCtrlC(int(child.Pid), false)
+			_ = sendCtrlBreak(int(child.Pid), true)
+			_ = closeWindow(int(child.Pid), false, true)
+		}
 	}
+
+	// Close the root process. Calling with "checkRun" set to "true" as stopping a child can close the parent.
+	_ = sendCtrlC(opts.Pid, true)
+	_ = sendCtrlBreak(opts.Pid, true)
+	if opts.Answer != "" {
+		_ = writeAnswer(opts.Pid, opts.Answer)
+	}
+	_ = closeWindow(opts.Pid, false, true)
+
+	return nil
 }
 
-// sendSig sends a control signal to the console the process and writes an answer message if specified.
+// sendCtrlC sends a CTRL_C_EVENT to the process.
 //
-// Inspired by https://stackoverflow.com/a/15281070.
-func sendSig(opts Options) error {
+// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
+//
+// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
+// "false", CTRL_C_EVENT will have no effect.
+func sendCtrlC(pid int, checkRun bool) error {
+	if checkRun {
+		if running, _ := IsRunning(pid); !running {
+			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
+		}
+	}
+	return sendSig(pid, windows.CTRL_C_EVENT)
+}
+
+// sendCtrlBreak sends a CTRL_BREAK_EVENT to the process.
+//
+// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
+func sendCtrlBreak(pid int, checkRun bool) error {
+	if checkRun {
+		if running, _ := IsRunning(pid); !running {
+			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
+		}
+	}
+	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
+	// SetConsoleCtrlHandler can't prevent it.
+	if attached, _ := isAttachedToCaller(pid); !attached {
+		return sendSig(pid, windows.CTRL_BREAK_EVENT)
+	}
+	return errors.New("The process with PID " + fmt.Sprint(pid) + " is attached to the current console.")
+}
+
+// sendSig sends a control signal to the console process.
+//
+// Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
+func sendSig(pid int, signal int) error {
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0
 
-	if opts.Signal == windows.CTRL_C_EVENT {
+	if signal == windows.CTRL_C_EVENT {
 		// Disable Ctrl + C processing. If we don't disable it here, then despite the fact we're enabling it in Another
 		// Process later, if the target process is using the same console as the current process, this program will
 		// terminate itself.
@@ -55,6 +103,10 @@ func sendSig(opts Options) error {
 		}
 	}
 
+	proxyPath, err := getProxyPath()
+	if err != nil {
+		return err
+	}
 	// Start a kamikaze process to attach to the console of the target process and send a signal.
 	// Such proxy process is required because:
 	// If the target process has it's own, separate console, then to attach to that console we have to FreeConsole of
@@ -62,15 +114,7 @@ func sendSig(opts Options) error {
 	// the system, so, this process will lose it's original console (AllocConsole means lost previous output, probably
 	// broken redirection etc).
 	// See /internal/proxy/proxy.go for the source code.
-	proxyPath, err := getProxyPath()
-	if err != nil {
-		return err
-	}
-	kamikaze := exec.Command(proxyPath,
-		"-mode", "signal",
-		"-pid", fmt.Sprint(opts.Pid),
-		"-sig", fmt.Sprint(opts.Signal),
-	)
+	kamikaze := exec.Command(proxyPath, "-mode", "signal", "-pid", fmt.Sprint(pid), "-sig", fmt.Sprint(signal))
 	attr := syscall.SysProcAttr{}
 	attr.CreationFlags |= windows.DETACHED_PROCESS
 	attr.NoInheritHandles = true
@@ -79,7 +123,7 @@ func sendSig(opts Options) error {
 	// exit code is STATUS_CONTROL_C_EXIT (even if CTRL_BREAK_EVENT was sent).
 	_ = kamikaze.Run()
 
-	if opts.Signal == windows.CTRL_C_EVENT {
+	if signal == windows.CTRL_C_EVENT {
 		// Enable Ctrl + C processing back to make this program react on Ctrl + C accordingly again and prevent new
 		// child processes from inheriting the disabled state.
 		// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back again to prevent self kill
@@ -99,12 +143,21 @@ func sendSig(opts Options) error {
 		return errors.New("The kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
 
+	return nil
+}
+
+// writeAnswer writes an answer message to the console process if specified.
+func writeAnswer(pid int, answer string) error {
+	proxyPath, err := getProxyPath()
+	if err != nil {
+		return err
+	}
 	// Start a message sender process to attach to the console of the target process and write a message to it's input
 	// using the -msg flag.
 	// Such proxy process is required for the same reason as above.
-	if opts.Answer != "" {
-		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(opts.Pid), "-msg", opts.Answer)
-		attr = syscall.SysProcAttr{}
+	if answer != "" {
+		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(pid), "-msg", answer)
+		attr := syscall.SysProcAttr{}
 		attr.CreationFlags |= windows.DETACHED_PROCESS
 		attr.NoInheritHandles = true
 		msgSender.SysProcAttr = &attr
@@ -113,7 +166,6 @@ func sendSig(opts Options) error {
 			return errors.New("The message sender process exited with error: " + err.Error())
 		}
 	}
-
 	return nil
 }
 
@@ -142,7 +194,14 @@ func getProxyPath() (string, error) {
 // closeWindow sends WM_CLOSE message to the main window of the process.
 //
 // If "allowOwnConsole" is set to "true", allow to close own console window of the process.
-func closeWindow(pid int, allowOwnConsole bool) error {
+//
+// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
+func closeWindow(pid int, allowOwnConsole bool, checkRun bool) error {
+	if checkRun {
+		if running, _ := IsRunning(pid); !running {
+			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
+		}
+	}
 	wnd, err := getWindow(pid, allowOwnConsole)
 	if err != nil {
 		return err
