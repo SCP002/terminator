@@ -8,5 +8,5 @@ require (
 	github.com/gonutz/w32/v2 v2.2.0
 	github.com/shirou/gopsutil/v3 v3.21.5
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
-	golang.org/x/sys v0.0.0-20210611083646-a4fc73990273
+	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
 )
