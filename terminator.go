@@ -16,22 +16,6 @@ type Options struct {
 	// Identifier of the process to stop.
 	Pid int
 
-	// Is a console process?
-	//
-	// If true, send a Ctrl + C or Ctrl + Break signal. They can be caught as a SIGINT.
-	//
-	// If false, send a WM_CLOSE message (as if the user is closing the window). It can be caught as a SIGTERM.
-	Console bool
-
-	// Signal type to send if Console is set to "true". 0 = CTRL_C_EVENT, 1 = CTRL_BREAK_EVENT.
-	//
-	// If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set
-	// to "false", CTRL_C_EVENT will have no effect.
-	//
-	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
-	// SetConsoleCtrlHandler can't prevent it.
-	Signal int
-
 	// Do not return error if process is not running (nothing to stop)?
 	IgnoreAbsent bool
 
@@ -43,7 +27,7 @@ type Options struct {
 
 	// If not empty, is a message to send to input of the target console after a signal is sent.
 	//
-	// It must end with a Windows newline sequence ("\r\n") to be sent.
+	// On Windows it must end with "\r\n" to be sent.
 	//
 	// If StdIn is redirected, the prompt of a batch executable is skipped automatically (no need for an answer).
 	//
@@ -53,7 +37,22 @@ type Options struct {
 }
 
 // Stop tries to gracefully terminate the process.
+//
+// On Windows it sequentially sends:
+//
+// A Ctrl + C signal (can be caught as a SIGINT).
+//
+// A Ctrl + Break signal (can be caught as a SIGINT).
+//
+// A WM_CLOSE message (as if the user is closing the window, can be caught as a SIGTERM).
+//
+// On POSIX it sequentially sends:
+//
+// A SIGINT signal.
+//
+// A SIGTERM signal.
 func Stop(opts Options) error {
+	// TODO: Use start time + PID to check Unique PID.
 	running, err := IsRunning(opts.Pid)
 	if err != nil {
 		return err
@@ -87,12 +86,12 @@ func IsRunning(pid int) (bool, error) {
 	return process.PidExists(int32(pid))
 }
 
-// getTree populates the "list" argument with gopsutil Process instances of all descendants of the specified process.
+// GetTree populates the "list" argument with gopsutil Process instances of all descendants of the specified process.
 //
 // The first element in the list is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
-func getTree(pid int, list *[]*process.Process, withRoot bool) error {
+func GetTree(pid int, list *[]*process.Process, withRoot bool) error {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
 		return err
@@ -105,7 +104,7 @@ func getTree(pid int, list *[]*process.Process, withRoot bool) error {
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		// Call self to collect descendants.
-		err := getTree(int(child.Pid), list, false)
+		err := GetTree(int(child.Pid), list, false)
 		if err != nil {
 			return err
 		}
