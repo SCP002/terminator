@@ -5,21 +5,15 @@ import (
 	"time"
 
 	"github.com/SCP002/terminator"
-	"golang.org/x/sys/windows"
 )
 
 func main() {
 	fmt.Print("The PID to terminate: ")
 	var pid int
 	fmt.Scanln(&pid)
-	fmt.Print("Is a console application (Yes = 1 / No = 0)?: ")
-	var isConsole bool
-	fmt.Scanln(&isConsole)
 
 	opts := terminator.Options{
 		Pid:          pid,
-		Console:      isConsole,
-		Signal:       windows.CTRL_C_EVENT,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5000,
