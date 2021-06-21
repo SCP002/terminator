@@ -200,7 +200,7 @@ func getProxyPath() (string, error) {
 //
 // If "checkRun" is set to "true", return an error if the process is not running, for better performance.
 //
-// Return value (error) is "nil" only if application successfully processes this message, but not necessary means that
+// Return value (error) is "nil" only if application successfully processes this message, but not necessarily means that
 // the window was actually closed.
 func closeWindow(pid int, allowOwnConsole bool, checkRun bool) error {
 	if checkRun {
