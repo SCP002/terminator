@@ -199,6 +199,9 @@ func getProxyPath() (string, error) {
 // If "allowOwnConsole" is set to "true", allow to close own console window of the process.
 //
 // If "checkRun" is set to "true", return an error if the process is not running, for better performance.
+//
+// Return value (error) is "nil" only if application successfully processes this message, but not necessary means that
+// the window was actually closed.
 func closeWindow(pid int, allowOwnConsole bool, checkRun bool) error {
 	if checkRun {
 		if running, _ := IsRunning(pid); !running {
@@ -210,7 +213,6 @@ func closeWindow(pid int, allowOwnConsole bool, checkRun bool) error {
 		return err
 	}
 	r := w32.SendMessage(wnd, w32.WM_CLOSE, 0, 0)
-	// WM_CLOSE returns 0 if appication processes this message, NOT if it did it's job successfully!
 	if r != 0 {
 		return errors.New("Failed to close the window with PID " + fmt.Sprint(pid))
 	}
