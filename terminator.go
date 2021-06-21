@@ -86,12 +86,12 @@ func IsRunning(pid int) (bool, error) {
 	return process.PidExists(int32(pid))
 }
 
-// GetTree populates the "list" argument with gopsutil Process instances of all descendants of the specified process.
+// GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
 //
-// The first element in the list is deepest descendant. The last one is a progenitor or closest child.
+// The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
-func GetTree(pid int, list *[]*process.Process, withRoot bool) error {
+func GetTree(pid int, tree *[]*process.Process, withRoot bool) error {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
 		return err
@@ -104,16 +104,16 @@ func GetTree(pid int, list *[]*process.Process, withRoot bool) error {
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		// Call self to collect descendants.
-		err := GetTree(int(child.Pid), list, false)
+		err := GetTree(int(child.Pid), tree, false)
 		if err != nil {
 			return err
 		}
 		// Add the child after it's descendants.
-		*list = append(*list, child)
+		*tree = append(*tree, child)
 	}
 	// Add the root process to the end.
 	if withRoot {
-		*list = append(*list, proc)
+		*tree = append(*tree, proc)
 	}
 	return nil
 }

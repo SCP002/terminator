@@ -12,12 +12,12 @@ import (
 func stop(opts Options) error {
 	// Close each child.
 	if opts.Tree {
-		list := []*process.Process{}
-		err := GetTree(opts.Pid, &list, false)
+		tree := []*process.Process{}
+		err := GetTree(opts.Pid, &tree, false)
 		if err != nil {
 			return err
 		}
-		for _, child := range list {
+		for _, child := range tree {
 			_ = syscall.Kill(int(child.Pid), syscall.SIGINT)
 			_ = syscall.Kill(int(child.Pid), syscall.SIGTERM)
 		}

@@ -29,19 +29,19 @@ var (
 func stop(opts Options) error {
 	// Close each child.
 	if opts.Tree {
-		list := []*process.Process{}
-		err := GetTree(opts.Pid, &list, false)
+		tree := []*process.Process{}
+		err := GetTree(opts.Pid, &tree, false)
 		if err != nil {
 			return err
 		}
-		for _, child := range list {
+		for _, child := range tree {
 			_ = sendCtrlC(int(child.Pid), false)
 			_ = sendCtrlBreak(int(child.Pid), true)
 			_ = closeWindow(int(child.Pid), false, true)
 		}
 	}
 
-	// Close the root process. Calling with "checkRun" set to "true" as stopping a child can close the parent.
+	// Close the root process. Calling sendCtrlC with "checkRun" set to "true" as stopping a child can close the parent.
 	_ = sendCtrlC(opts.Pid, true)
 	_ = sendCtrlBreak(opts.Pid, true)
 	if opts.Answer != "" {
