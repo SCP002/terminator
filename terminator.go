@@ -52,38 +52,36 @@ type Options struct {
 //
 // A SIGTERM signal.
 func Stop(opts Options) error {
-	// TODO: Use start time + PID to check Unique PID.
-	running, err := IsRunning(opts.Pid)
+	// TODO: Return the slice of stop info structs
+	proc, err := process.NewProcess(int32(opts.Pid))
 	if err != nil {
-		return err
-	}
-	if !running {
 		if opts.IgnoreAbsent {
 			return nil
 		} else {
-			return errors.New("The process with PID " + fmt.Sprint(opts.Pid) + " does not exist.")
+			return err
 		}
 	}
 
-	// Can't fully rely on stop() return error value, so using IsRunning() for confirmation.
-	err = stop(opts)
-	if err != nil {
-		return err
+	tree := []process.Process{}
+	if opts.Tree {
+		err := GetTree(*proc, &tree, false)
+		if err != nil {
+			return err
+		}
 	}
 
-	running, err = IsRunning(opts.Pid)
-	if err != nil {
-		return err
+	stop(*proc, tree, opts.Answer)
+
+	if running, _ := proc.IsRunning(); running {
+		return errors.New("Failed to stop the root process with PID " + fmt.Sprint(proc.Pid))
 	}
-	if running {
-		return errors.New("Failed to stop the process with PID " + fmt.Sprint(opts.Pid))
+	for _, child := range tree {
+		if running, _ := child.IsRunning(); running {
+			return errors.New("Failed to stop the child process with PID " + fmt.Sprint(child.Pid))
+		}
 	}
+
 	return nil
-}
-
-// IsRunning returns true if the process exists.
-func IsRunning(pid int) (bool, error) {
-	return process.PidExists(int32(pid))
 }
 
 // GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
@@ -91,11 +89,7 @@ func IsRunning(pid int) (bool, error) {
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
-func GetTree(pid int, tree *[]*process.Process, withRoot bool) error {
-	proc, err := process.NewProcess(int32(pid))
-	if err != nil {
-		return err
-	}
+func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error {
 	children, err := proc.Children()
 	if err != nil {
 		return err
@@ -104,12 +98,12 @@ func GetTree(pid int, tree *[]*process.Process, withRoot bool) error {
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		// Call self to collect descendants.
-		err := GetTree(int(child.Pid), tree, false)
+		err := GetTree(*child, tree, false)
 		if err != nil {
 			return err
 		}
 		// Add the child after it's descendants.
-		*tree = append(*tree, child)
+		*tree = append(*tree, *child)
 	}
 	// Add the root process to the end.
 	if withRoot {

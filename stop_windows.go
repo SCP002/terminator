@@ -26,56 +26,62 @@ var (
 )
 
 // stop tries to gracefully terminate the process.
-func stop(opts Options) error {
-	// Close each child.
-	if opts.Tree {
-		tree := []*process.Process{}
-		err := GetTree(opts.Pid, &tree, false)
-		if err != nil {
-			return err
+func stop(proc process.Process, tree []process.Process, answer string) {
+	// Close each child if given.
+	for _, child := range tree {
+		if err := sendCtrlC(int(child.Pid)); err == nil {
+			if running, err := child.IsRunning(); !running && err == nil {
+				continue
+			}
 		}
-		for _, child := range tree {
-			_ = sendCtrlC(int(child.Pid), false)
-			_ = sendCtrlBreak(int(child.Pid), true)
-			_ = closeWindow(int(child.Pid), false, true)
+
+		if err := sendCtrlBreak(int(child.Pid)); err == nil {
+			if running, err := child.IsRunning(); !running && err == nil {
+				continue
+			}
+		}
+
+		_ = closeWindow(int(child.Pid), false)
+	}
+
+	// Close the root process. The first IsRunning check is required as stopping a child can close the parent.
+	if running, err := proc.IsRunning(); !running && err == nil {
+		return
+	}
+
+	if err := sendCtrlC(int(proc.Pid)); err == nil {
+		if running, err := proc.IsRunning(); !running && err == nil {
+			return
 		}
 	}
 
-	// Close the root process. Calling sendCtrlC with "checkRun" set to "true" as stopping a child can close the parent.
-	_ = sendCtrlC(opts.Pid, true)
-	_ = sendCtrlBreak(opts.Pid, true)
-	if opts.Answer != "" {
-		_ = writeAnswer(opts.Pid, opts.Answer)
+	if err := sendCtrlBreak(int(proc.Pid)); err == nil {
+		if running, err := proc.IsRunning(); !running && err == nil {
+			return
+		}
 	}
-	_ = closeWindow(opts.Pid, false, true)
 
-	return nil
+	if answer != "" {
+		if err := writeAnswer(int(proc.Pid), answer); err == nil {
+			if running, err := proc.IsRunning(); !running && err == nil {
+				return
+			}
+		}
+	}
+
+	_ = closeWindow(int(proc.Pid), false)
 }
 
 // sendCtrlC sends a CTRL_C_EVENT to the process.
 //
-// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
-//
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // "false", CTRL_C_EVENT will have no effect.
-func sendCtrlC(pid int, checkRun bool) error {
-	if checkRun {
-		if running, _ := IsRunning(pid); !running {
-			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
-		}
-	}
+func sendCtrlC(pid int) error {
 	return sendSig(pid, windows.CTRL_C_EVENT)
 }
 
 // sendCtrlBreak sends a CTRL_BREAK_EVENT to the process.
-//
-// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
-func sendCtrlBreak(pid int, checkRun bool) error {
-	if checkRun {
-		if running, _ := IsRunning(pid); !running {
-			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
-		}
-	}
+func sendCtrlBreak(pid int) error {
 	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
 	// SetConsoleCtrlHandler can't prevent it.
 	if attached, _ := isAttachedToCaller(pid); !attached {
@@ -198,16 +204,9 @@ func getProxyPath() (string, error) {
 //
 // If "allowOwnConsole" is set to "true", allow to close own console window of the process.
 //
-// If "checkRun" is set to "true", return an error if the process is not running, for better performance.
-//
 // Return value (error) is "nil" only if application successfully processes this message, but not necessarily means that
 // the window was actually closed.
-func closeWindow(pid int, allowOwnConsole bool, checkRun bool) error {
-	if checkRun {
-		if running, _ := IsRunning(pid); !running {
-			return errors.New("The process with PID " + fmt.Sprint(pid) + " does not exist.")
-		}
-	}
+func closeWindow(pid int, allowOwnConsole bool) error {
 	wnd, err := getWindow(pid, allowOwnConsole)
 	if err != nil {
 		return err

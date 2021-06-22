@@ -9,29 +9,14 @@ import (
 )
 
 // stop tries to gracefully terminate the process.
-func stop(opts Options) error {
-	// Close each child.
-	if opts.Tree {
-		tree := []*process.Process{}
-		err := GetTree(opts.Pid, &tree, false)
-		if err != nil {
-			return err
-		}
-		for _, child := range tree {
-			_ = syscall.Kill(int(child.Pid), syscall.SIGINT)
-			_ = syscall.Kill(int(child.Pid), syscall.SIGTERM)
-		}
+func stop(proc process.Process, tree []process.Process, answer string) {
+	// Close each child if given.
+	for _, child := range tree {
+		_ = syscall.Kill(int(child.Pid), syscall.SIGINT)
+		_ = syscall.Kill(int(child.Pid), syscall.SIGTERM)
 	}
 
 	// Close the root process.
-	_ = syscall.Kill(opts.Pid, syscall.SIGINT)
-	_ = syscall.Kill(opts.Pid, syscall.SIGTERM)
-
-	return nil
-}
-
-// writeAnswer writes an answer message to the console process if specified.
-// TODO: Implement if needed.
-func writeAnswer(pid int, answer string) error {
-	return nil
+	_ = syscall.Kill(int(proc.Pid), syscall.SIGINT)
+	_ = syscall.Kill(int(proc.Pid), syscall.SIGTERM)
 }
