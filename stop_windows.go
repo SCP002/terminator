@@ -14,7 +14,9 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/windows"
 
+	pErrors "github.com/SCP002/terminator/internal/errors"
 	proxyBin "github.com/SCP002/terminator/internal/proxy/bin"
+	"github.com/SCP002/terminator/internal/proxy/codes"
 	proxyVer "github.com/SCP002/terminator/internal/proxy/version"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
@@ -26,50 +28,79 @@ var (
 )
 
 // stop tries to gracefully terminate the process.
-func stop(proc process.Process, tree []process.Process, answer string) {
+func stop(proc process.Process, tree []process.Process, answer string) StopResult {
+	sr := newStopResult(&proc)
 	// Close each child if given.
 	for _, child := range tree {
-		if err := sendCtrlC(int(child.Pid)); err == nil {
+		psp := PostStopProc{Proc: &child}
+
+		// Try Ctrl + C.
+		err := sendCtrlC(int(child.Pid))
+		if _, died := err.(pErrors.ProcDied); died {
+			psp.State = Died
+			sr.Children = append(sr.Children, psp)
+			continue
+		}
+		if err == nil {
 			if running, err := child.IsRunning(); !running && err == nil {
+				psp.State = Stopped
+				sr.Children = append(sr.Children, psp)
 				continue
 			}
 		}
-
+		// Try Ctrl + Break.
 		if err := sendCtrlBreak(int(child.Pid)); err == nil {
 			if running, err := child.IsRunning(); !running && err == nil {
+				psp.State = Stopped
+				sr.Children = append(sr.Children, psp)
 				continue
 			}
 		}
-
-		_ = closeWindow(int(child.Pid), false)
-	}
-
-	// Close the root process. The first IsRunning check is required as stopping a child can close the parent.
-	if running, err := proc.IsRunning(); !running && err == nil {
-		return
-	}
-
-	if err := sendCtrlC(int(proc.Pid)); err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			return
+		// Try to close the window.
+		if err := closeWindow(int(child.Pid), false); err == nil {
+			if running, err := child.IsRunning(); !running && err == nil {
+				psp.State = Stopped
+				sr.Children = append(sr.Children, psp)
+			}
 		}
 	}
-
+	// Close the root process.
+	// Try Ctrl + C.
+	err := sendCtrlC(int(proc.Pid))
+	if _, died := err.(pErrors.ProcDied); died {
+		sr.Root.State = Died
+		return sr
+	}
+	if err == nil {
+		if running, err := proc.IsRunning(); !running && err == nil {
+			sr.Root.State = Stopped
+			return sr
+		}
+	}
+	// Try Ctrl + Break.
 	if err := sendCtrlBreak(int(proc.Pid)); err == nil {
 		if running, err := proc.IsRunning(); !running && err == nil {
-			return
+			sr.Root.State = Stopped
+			return sr
 		}
 	}
-
+	// Try to write an answer.
 	if answer != "" {
 		if err := writeAnswer(int(proc.Pid), answer); err == nil {
 			if running, err := proc.IsRunning(); !running && err == nil {
-				return
+				sr.Root.State = Stopped
+				return sr
 			}
 		}
 	}
-
-	_ = closeWindow(int(proc.Pid), false)
+	// Try to close the window.
+	if err := closeWindow(int(proc.Pid), false); err == nil {
+		if running, err := proc.IsRunning(); !running && err == nil {
+			sr.Root.State = Stopped
+			return sr
+		}
+	}
+	return sr
 }
 
 // sendCtrlC sends a CTRL_C_EVENT to the process.
@@ -146,8 +177,11 @@ func sendSig(pid int, signal int) error {
 		}
 	}
 
-	// Return error if the kamikaze process failed to exit with STATUS_CONTROL_C_EXIT.
+	// Return error if the kamikaze process exited with ProcessDoesNotExist or not with STATUS_CONTROL_C_EXIT.
 	exitCode := kamikaze.ProcessState.ExitCode()
+	if exitCode == codes.ProcessDoesNotExist {
+		return pErrors.NewProcDied(pid)
+	}
 	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
 		return errors.New("The kamikaze process exited with unexpected exit code: " + fmt.Sprint(exitCode))
 	}
@@ -171,6 +205,9 @@ func writeAnswer(pid int, answer string) error {
 		attr.NoInheritHandles = true
 		msgSender.SysProcAttr = &attr
 		err = msgSender.Run()
+		if msgSender.ProcessState.ExitCode() == codes.ProcessDoesNotExist {
+			return pErrors.NewProcDied(pid)
+		}
 		if err != nil {
 			return errors.New("The message sender process exited with error: " + err.Error())
 		}

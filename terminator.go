@@ -1,13 +1,12 @@
 package terminator
 
 import (
-	"errors"
-	"fmt"
+	"os"
 
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// TODO: Timeouts, see:
+// TODO: Kill on timeout + prevent blocking, see:
 // https://dev.to/hekonsek/using-context-in-go-timeout-hg7
 // https://stackoverflow.com/questions/61042141/stopping-running-function-using-context-timeout-in-golang
 
@@ -36,9 +35,32 @@ type Options struct {
 	Answer string
 }
 
+// State represents the process state.
+type State string
+
+const (
+	Running State = "Running"
+	Stopped State = "Stopped"
+	Killed  State = "Killed"
+	Died    State = "Died"
+)
+
+// PostStopProc represents the process with status after stop attempt.
+type PostStopProc struct {
+	Proc  *process.Process
+	State State
+	// TODO: Channel?
+}
+
+// StopResult represents a container for root and child processes after stop attempt.
+type StopResult struct {
+	Root     PostStopProc
+	Children []PostStopProc
+}
+
 // Stop tries to gracefully terminate the process.
 //
-// On Windows it sequentially sends:
+// --- On Windows it sequentially sends: ---
 //
 // A Ctrl + C signal (can be caught as a SIGINT).
 //
@@ -46,19 +68,27 @@ type Options struct {
 //
 // A WM_CLOSE message (as if the user is closing the window, can be caught as a SIGTERM).
 //
-// On POSIX it sequentially sends:
+// TerminateProcess syscall as a fallback.
+//
+// --- On POSIX it sequentially sends: ---
 //
 // A SIGINT signal.
 //
 // A SIGTERM signal.
-func Stop(opts Options) error {
-	// TODO: Return the slice of stop info structs
+//
+// A SIGKILL signal as a fallback.
+//
+// Returns an error if the process does not exist (if IgnoreAbsent is "false"), if an internal error is happened, or if
+// failed to kill the root process or any child (if Tree is "true").
+func Stop(opts Options) (StopResult, error) {
 	proc, err := process.NewProcess(int32(opts.Pid))
+	sr := newStopResult(proc)
+
 	if err != nil {
 		if opts.IgnoreAbsent {
-			return nil
+			return sr, nil
 		} else {
-			return err
+			return sr, err
 		}
 	}
 
@@ -66,22 +96,38 @@ func Stop(opts Options) error {
 	if opts.Tree {
 		err := GetTree(*proc, &tree, false)
 		if err != nil {
-			return err
+			return sr, err
 		}
 	}
 
-	stop(*proc, tree, opts.Answer)
+	sr = stop(*proc, tree, opts.Answer)
+	var endErr error
 
-	if running, _ := proc.IsRunning(); running {
-		return errors.New("Failed to stop the root process with PID " + fmt.Sprint(proc.Pid))
+	// No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
+	for _, child := range sr.Children {
+		if child.State == Running {
+			err = child.Proc.Kill()
+			if err == nil {
+				child.State = Killed
+			} else if err == os.ErrProcessDone {
+				child.State = Died
+			} else {
+				endErr = err
+			}
+		}
 	}
-	for _, child := range tree {
-		if running, _ := child.IsRunning(); running {
-			return errors.New("Failed to stop the child process with PID " + fmt.Sprint(child.Pid))
+	if sr.Root.State == Running {
+		err = sr.Root.Proc.Kill()
+		if err == nil {
+			sr.Root.State = Killed
+		} else if err == os.ErrProcessDone {
+			sr.Root.State = Died
+		} else {
+			endErr = err
 		}
 	}
 
-	return nil
+	return sr, endErr
 }
 
 // GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
@@ -110,4 +156,15 @@ func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error
 		*tree = append(*tree, proc)
 	}
 	return nil
+}
+
+// newStopResult returns the new default StopResult instance.
+func newStopResult(proc *process.Process) StopResult {
+	return StopResult{
+		Root: PostStopProc{
+			Proc:  proc,
+			State: Running,
+		},
+		Children: []PostStopProc{},
+	}
 }
