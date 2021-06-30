@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -30,10 +31,12 @@ func main() {
 		Timeout:      5000,
 		Answer:       "",
 	}
-	err = terminator.Stop(opts)
+	sr, err := terminator.Stop(opts)
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}
+	prettySr, _ := json.MarshalIndent(sr, "", "\t")
+	fmt.Println(string(prettySr))
 
 	fmt.Println("Continuing execution of caller")
 	time.Sleep(2 * time.Second)
