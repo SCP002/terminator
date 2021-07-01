@@ -6,7 +6,7 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// TODO: Kill on timeout + prevent blocking, see:
+// TODO: Kill on timeout, see:
 // https://dev.to/hekonsek/using-context-in-go-timeout-hg7
 // https://stackoverflow.com/questions/61042141/stopping-running-function-using-context-timeout-in-golang
 

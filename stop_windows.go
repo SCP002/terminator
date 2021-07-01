@@ -57,7 +57,7 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 			}
 		}
 		// Try to close the window.
-		if err := closeWindow(int(child.Pid), false); err == nil {
+		if err := closeWindow(int(child.Pid), false, false); err == nil {
 			if running, err := child.IsRunning(); !running && err == nil {
 				psp.State = Stopped
 				sr.Children = append(sr.Children, psp)
@@ -94,7 +94,7 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 		}
 	}
 	// Try to close the window.
-	if err := closeWindow(int(proc.Pid), false); err == nil {
+	if err := closeWindow(int(proc.Pid), false, false); err == nil {
 		if running, err := proc.IsRunning(); !running && err == nil {
 			sr.Root.State = Stopped
 			return sr
@@ -241,15 +241,23 @@ func getProxyPath() (string, error) {
 //
 // If "allowOwnConsole" is set to "true", allow to close own console window of the process.
 //
+// If "wait" is set to "true", wait for the window procedure to process the message. It will stop execution until user,
+// for example, answer a confirmation dialogue box.
+//
 // Return value (error) is "nil" only if application successfully processes this message, but not necessarily means that
 // the window was actually closed.
-func closeWindow(pid int, allowOwnConsole bool) error {
+func closeWindow(pid int, allowOwnConsole bool, wait bool) error {
 	wnd, err := getWindow(pid, allowOwnConsole)
 	if err != nil {
 		return err
 	}
-	r := w32.SendMessage(wnd, w32.WM_CLOSE, 0, 0)
-	if r != 0 {
+	var ok bool
+	if wait {
+		ok = w32.SendMessage(wnd, w32.WM_CLOSE, 0, 0) == 0
+	} else {
+		ok = w32.PostMessage(wnd, w32.WM_CLOSE, 0, 0)
+	}
+	if !ok {
 		return errors.New("Failed to close the window with PID " + fmt.Sprint(pid))
 	}
 	return nil
