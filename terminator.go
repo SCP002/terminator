@@ -143,6 +143,9 @@ func Stop(opts Options) (StopResult, error) {
 // If the "withRoot" argument is set to "true", include the root process.
 func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error {
 	children, err := proc.Children()
+	if err == process.ErrorNoChildren { // TODO: Update gist.
+		return nil
+	}
 	if err != nil {
 		return err
 	}
