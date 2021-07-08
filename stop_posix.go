@@ -3,8 +3,10 @@
 package terminator
 
 import (
+	"fmt"
 	"os"
 	"syscall"
+	"unsafe"
 
 	"github.com/shirou/gopsutil/v3/process"
 )
@@ -60,7 +62,32 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 	}
 	// Try to write an answer.
 	if answer != "" {
-		// TODO: Implement it.
+		if err := writeAnswer(int(proc.Pid), answer); err == nil {
+			if running, err := proc.IsRunning(); !running && err == nil {
+				sr.Root.State = Stopped
+				return sr
+			}
+		}
 	}
 	return sr
+}
+
+// writeAnswer writes an answer message to the console process if specified.
+//
+// Requires root privilegies (e.g. run as sudo).
+// TODO: Create unix gist.
+// TODO: Update windows gist.
+func writeAnswer(pid int, msg string) error {
+	f, err := os.OpenFile(fmt.Sprintf("/proc/%v/fd/0", pid), os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	for _, c := range msg {
+		_, _, err := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), syscall.TIOCSTI, uintptr(unsafe.Pointer(&c)))
+		if err != 0 {
+			return err
+		}
+	}
+	return nil
 }

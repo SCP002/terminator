@@ -26,12 +26,18 @@ type Options struct {
 
 	// If not empty, is a message to send to input of the target console after a signal is sent.
 	//
-	// On Windows it must end with "\r\n" to be sent.
+	// --- On Windows: ---
+	//
+	// It must end with "\r\n" to be sent.
 	//
 	// If StdIn is redirected, the prompt of a batch executable is skipped automatically (no need for an answer).
 	//
 	// If this program itself is launched from a batch file (e.g. run.cmd), the final prompt appears After this program
 	// ends, thus answering to it is beyond the scope of this program.
+	//
+	// --- On POSIX: ---
+	//
+	// It must end with "\n" to be sent.
 	Answer string
 }
 
