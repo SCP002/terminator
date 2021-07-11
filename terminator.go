@@ -116,7 +116,7 @@ func Stop(opts Options) (StopResult, error) {
 			if err == nil {
 				child.State = Killed
 			} else if err == os.ErrProcessDone {
-				child.State = Died
+				child.State = Stopped
 			} else {
 				endErr = err
 			}
@@ -127,7 +127,7 @@ func Stop(opts Options) (StopResult, error) {
 		if err == nil {
 			sr.Root.State = Killed
 		} else if err == os.ErrProcessDone {
-			sr.Root.State = Died
+			sr.Root.State = Stopped
 		} else {
 			endErr = err
 		}
