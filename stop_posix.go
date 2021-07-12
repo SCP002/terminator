@@ -3,7 +3,6 @@
 package terminator
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 	"unsafe"
@@ -62,7 +61,7 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 	}
 	// Try to write an answer.
 	if answer != "" {
-		if err := writeAnswer(int(proc.Pid), answer); err == nil {
+		if err := writeAnswer(proc, answer); err == nil {
 			if running, err := proc.IsRunning(); !running && err == nil {
 				sr.Root.State = Stopped
 				return sr
@@ -77,8 +76,12 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 // Requires root privilegies (e.g. run as sudo).
 // TODO: Create unix gist.
 // TODO: Update windows gist.
-func writeAnswer(pid int, msg string) error {
-	f, err := os.OpenFile(fmt.Sprintf("/proc/%v/fd/0", pid), os.O_WRONLY, 0644)
+func writeAnswer(proc process.Process, msg string) error {
+	term, err := proc.Terminal()
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile("/dev" + term, os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
