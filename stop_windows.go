@@ -198,19 +198,17 @@ func writeAnswer(pid int, answer string) error {
 	// Start a message sender process to attach to the console of the target process and write a message to it's input
 	// using the -msg flag.
 	// Such proxy process is required for the same reason as above.
-	if answer != "" { // TODO: Remove check.
-		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(pid), "-msg", answer)
-		attr := syscall.SysProcAttr{}
-		attr.CreationFlags |= windows.DETACHED_PROCESS
-		attr.NoInheritHandles = true
-		msgSender.SysProcAttr = &attr
-		err = msgSender.Run()
-		if msgSender.ProcessState.ExitCode() == codes.ProcessDoesNotExist {
-			return pErrors.NewProcDied(pid)
-		}
-		if err != nil {
-			return errors.New("The message sender process exited with error: " + err.Error())
-		}
+	msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(pid), "-msg", answer)
+	attr := syscall.SysProcAttr{}
+	attr.CreationFlags |= windows.DETACHED_PROCESS
+	attr.NoInheritHandles = true
+	msgSender.SysProcAttr = &attr
+	err = msgSender.Run()
+	if msgSender.ProcessState.ExitCode() == codes.ProcessDoesNotExist {
+		return pErrors.NewProcDied(pid)
+	}
+	if err != nil {
+		return errors.New("The message sender process exited with error: " + err.Error())
 	}
 	return nil
 }
