@@ -71,12 +71,10 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 	return sr
 }
 
-// writeAnswer writes an answer message to the console process if specified.
+// writeAnswer writes an answer message to the console process.
 //
 // Requires root privilegies (e.g. run as sudo).
-// TODO: Create unix gist.
-// TODO: Update windows gist.
-func writeAnswer(proc process.Process, msg string) error {
+func writeAnswer(proc process.Process, answer string) error {
 	term, err := proc.Terminal()
 	if err != nil {
 		return err
@@ -86,7 +84,7 @@ func writeAnswer(proc process.Process, msg string) error {
 		return err
 	}
 	defer f.Close()
-	for _, c := range msg {
+	for _, c := range answer {
 		_, _, err := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), syscall.TIOCSTI, uintptr(unsafe.Pointer(&c)))
 		if err != 0 {
 			return err

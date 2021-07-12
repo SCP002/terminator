@@ -189,7 +189,7 @@ func sendSig(pid int, signal int) error {
 	return nil
 }
 
-// writeAnswer writes an answer message to the console process if specified.
+// writeAnswer writes an answer message to the console process.
 func writeAnswer(pid int, answer string) error {
 	proxyPath, err := getProxyPath()
 	if err != nil {
@@ -198,7 +198,7 @@ func writeAnswer(pid int, answer string) error {
 	// Start a message sender process to attach to the console of the target process and write a message to it's input
 	// using the -msg flag.
 	// Such proxy process is required for the same reason as above.
-	if answer != "" {
+	if answer != "" { // TODO: Remove check.
 		msgSender := exec.Command(proxyPath, "-mode", "answer", "-pid", fmt.Sprint(pid), "-msg", answer)
 		attr := syscall.SysProcAttr{}
 		attr.CreationFlags |= windows.DETACHED_PROCESS
