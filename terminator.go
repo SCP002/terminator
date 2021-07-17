@@ -6,9 +6,7 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
-// TODO: Kill on timeout, see:
-// https://dev.to/hekonsek/using-context-in-go-timeout-hg7
-// https://stackoverflow.com/questions/61042141/stopping-running-function-using-context-timeout-in-golang
+// TODO: Kill on timeout.
 
 // Options respresents options to stop a process.
 type Options struct {
@@ -51,17 +49,16 @@ const (
 	Died    State = "Died"
 )
 
-// PostStopProc represents the process with status after stop attempt.
-type PostStopProc struct {
-	Proc  *process.Process
+// ProcState represents the gopsutil process with status after stop attempt.
+type ProcState struct {
+	*process.Process
 	State State
-	// TODO: Channel?
 }
 
 // StopResult represents a container for root and child processes after stop attempt.
 type StopResult struct {
-	Root     PostStopProc
-	Children []PostStopProc
+	Root     ProcState
+	Children []ProcState
 }
 
 // Stop tries to gracefully terminate the process.
@@ -112,7 +109,7 @@ func Stop(opts Options) (StopResult, error) {
 	// No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
 	for _, child := range sr.Children {
 		if child.State == Running {
-			err = child.Proc.Kill()
+			err = child.Kill()
 			if err == nil {
 				child.State = Killed
 			} else if err == os.ErrProcessDone {
@@ -123,7 +120,7 @@ func Stop(opts Options) (StopResult, error) {
 		}
 	}
 	if sr.Root.State == Running {
-		err = sr.Root.Proc.Kill()
+		err = sr.Root.Kill()
 		if err == nil {
 			sr.Root.State = Killed
 		} else if err == os.ErrProcessDone {
@@ -170,10 +167,10 @@ func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error
 // newStopResult returns the new default StopResult instance.
 func newStopResult(proc *process.Process) StopResult {
 	return StopResult{
-		Root: PostStopProc{
-			Proc:  proc,
+		Root: ProcState{
+			Process: proc,
 			State: Running,
 		},
-		Children: []PostStopProc{},
+		Children: []ProcState{},
 	}
 }

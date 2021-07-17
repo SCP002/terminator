@@ -15,27 +15,27 @@ func stop(proc process.Process, tree []process.Process, answer string) StopResul
 	sr := newStopResult(&proc)
 	// Close each child if given.
 	for _, child := range tree {
-		psp := PostStopProc{Proc: &child}
+		ps := ProcState{Process: &child}
 
 		// Try SIGINT.
 		err := child.SendSignal(syscall.SIGINT)
 		if err == os.ErrProcessDone {
-			psp.State = Died
-			sr.Children = append(sr.Children, psp)
+			ps.State = Died
+			sr.Children = append(sr.Children, ps)
 			continue
 		}
 		if err == nil {
 			if running, err := child.IsRunning(); !running && err == nil {
-				psp.State = Stopped
-				sr.Children = append(sr.Children, psp)
+				ps.State = Stopped
+				sr.Children = append(sr.Children, ps)
 				continue
 			}
 		}
 		// Try SIGTERM.
 		if err := child.Terminate(); err == nil {
 			if running, err := child.IsRunning(); !running && err == nil {
-				psp.State = Stopped
-				sr.Children = append(sr.Children, psp)
+				ps.State = Stopped
+				sr.Children = append(sr.Children, ps)
 			}
 		}
 	}
