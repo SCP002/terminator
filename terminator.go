@@ -56,6 +56,11 @@ type ProcState struct {
 	State State
 }
 
+// newProcState returns the new default ProcState instance.
+func newProcState(proc *process.Process) ProcState {
+	return ProcState{Process: proc, State: Running}
+}
+
 // killWithContext returns as soon as the process is stopped and kills when the context Done channel returns.
 //
 // tick argument is the interval at which the process status check will be performed.
@@ -87,6 +92,11 @@ func (ps *ProcState) killWithContext(ctx context.Context, tick time.Duration) er
 type StopResult struct {
 	Root     ProcState
 	Children []ProcState
+}
+
+// newStopResult returns the new default StopResult instance.
+func newStopResult(proc *process.Process) StopResult {
+	return StopResult{Root: newProcState(proc), Children: []ProcState{}}
 }
 
 // Stop tries to gracefully terminate the process.
@@ -133,8 +143,17 @@ func Stop(opts Options) (StopResult, error) {
 		}
 	}
 
-	// Try to stop processes gracefully.
-	sr = stop(*proc, tree, opts.Answer) // TODO: Assign stop() to ProcState + move superficial logic here + one loop?
+	// Try to stop child processes gracefully.
+	// TODO: One loop with kill?
+	for i := range tree {
+		child := &tree[i]
+		ps := newProcState(child)
+		ps.stop("")
+		sr.Children = append(sr.Children, ps)
+	}
+
+	// Try to stop the root process gracefully.
+	sr.Root.stop(opts.Answer)
 
 	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
 	defer cancel()
@@ -142,23 +161,27 @@ func Stop(opts Options) (StopResult, error) {
 
 	// Wait for child processes to stop in the allotted time and kill after timeout.
 	var wg sync.WaitGroup
-	for _, child := range sr.Children { // No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
-		child := child
-		wg.Add(1)
-		go func() {
-			err = child.killWithContext(ctx, 100*time.Millisecond)
-			if endErr == nil {
-				endErr = err
-			}
-			wg.Done()
-		}()
+	for i := range sr.Children { // No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
+		child := &sr.Children[i]
+		if child.State == Running {
+			wg.Add(1)
+			go func() {
+				err = child.killWithContext(ctx, 100*time.Millisecond)
+				if endErr == nil {
+					endErr = err
+				}
+				wg.Done()
+			}()
+		}
 	}
 	wg.Wait()
 
 	// Wait for root process to stop in the allotted time and kill after timeout.
-	err = sr.Root.killWithContext(ctx, 100*time.Millisecond)
-	if endErr == nil {
-		endErr = err
+	if sr.Root.State == Running {
+		err = sr.Root.killWithContext(ctx, 100*time.Millisecond)
+		if endErr == nil {
+			endErr = err
+		}
 	}
 
 	return sr, endErr
@@ -194,15 +217,4 @@ func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error
 		*tree = append(*tree, proc)
 	}
 	return nil
-}
-
-// newStopResult returns the new default StopResult instance.
-func newStopResult(proc *process.Process) StopResult {
-	return StopResult{
-		Root: ProcState{
-			Process: proc,
-			State:   Running,
-		},
-		Children: []ProcState{},
-	}
 }
