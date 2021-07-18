@@ -11,64 +11,37 @@ import (
 )
 
 // stop tries to gracefully terminate the process.
-func stop(proc process.Process, tree []process.Process, answer string) StopResult {
-	sr := newStopResult(&proc)
-	// Close each child if given.
-	for _, child := range tree {
-		ps := ProcState{Process: &child}
+func (ps *ProcState) stop(answer string) {
+	// Error checks after each attempt are done to be consistent with implementation for Windows.
 
-		// Try SIGINT.
-		err := child.SendSignal(syscall.SIGINT)
-		if err == os.ErrProcessDone {
-			ps.State = Died
-			sr.Children = append(sr.Children, ps)
-			continue
-		}
-		if err == nil {
-			if running, err := child.IsRunning(); !running && err == nil {
-				ps.State = Stopped
-				sr.Children = append(sr.Children, ps)
-				continue
-			}
-		}
-		// Try SIGTERM.
-		if err := child.Terminate(); err == nil {
-			if running, err := child.IsRunning(); !running && err == nil {
-				ps.State = Stopped
-				sr.Children = append(sr.Children, ps)
-			}
-		}
-	}
-	// Close the root process.
 	// Try SIGINT.
-	err := proc.SendSignal(syscall.SIGINT)
+	err := ps.SendSignal(syscall.SIGINT)
 	if err == os.ErrProcessDone {
-		sr.Root.State = Died
-		return sr
+		ps.State = Died
+		return
 	}
 	if err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			sr.Root.State = Stopped
-			return sr
+		if running, err := ps.IsRunning(); !running && err == nil {
+			ps.State = Stopped
+			return
 		}
 	}
 	// Try SIGTERM.
-	if err := proc.Terminate(); err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			sr.Root.State = Stopped
-			return sr
+	if err := ps.Terminate(); err == nil {
+		if running, err := ps.IsRunning(); !running && err == nil {
+			ps.State = Stopped
+			return
 		}
 	}
 	// Try to write an answer.
 	if answer != "" {
-		if err := writeAnswer(proc, answer); err == nil {
-			if running, err := proc.IsRunning(); !running && err == nil {
-				sr.Root.State = Stopped
-				return sr
+		if err := writeAnswer(*ps.Process, answer); err == nil {
+			if running, err := ps.IsRunning(); !running && err == nil {
+				ps.State = Stopped
+				return
 			}
 		}
 	}
-	return sr
 }
 
 // writeAnswer writes an answer message to the console process.
@@ -79,7 +52,7 @@ func writeAnswer(proc process.Process, answer string) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile("/dev" + term, os.O_WRONLY, 0644)
+	f, err := os.OpenFile("/dev"+term, os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
