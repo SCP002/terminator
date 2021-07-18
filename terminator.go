@@ -1,12 +1,13 @@
 package terminator
 
 import (
+	"context"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/shirou/gopsutil/v3/process"
 )
-
-// TODO: Kill on timeout.
 
 // Options respresents options to stop a process.
 type Options struct {
@@ -19,8 +20,8 @@ type Options struct {
 	// Stop the specified process and any child processes which were started by it?
 	Tree bool
 
-	// Time in milliseconds allotted for the process to stop gracefully before it get killed.
-	Timeout int
+	// Time allotted for the process to stop gracefully before it get killed.
+	Timeout time.Duration
 
 	// If not empty, is a message to send to input of the target console after a signal is sent.
 	//
@@ -43,16 +44,43 @@ type Options struct {
 type State string
 
 const (
-	Running State = "Running"
-	Stopped State = "Stopped"
-	Killed  State = "Killed"
-	Died    State = "Died"
+	Running State = "Running" // Initial state.
+	Stopped State = "Stopped" // Stopped gracefully.
+	Killed  State = "Killed"  // Killed by force.
+	Died    State = "Died"    // Terminated by unknown reason (killed by another process etc).
 )
 
 // ProcState represents the gopsutil process with status after stop attempt.
 type ProcState struct {
 	*process.Process
 	State State
+}
+
+// killWithContext returns as soon as the process is stopped and kills when the context Done channel returns.
+//
+// tick argument is the interval at which the process status check will be performed.
+func (ps *ProcState) killWithContext(ctx context.Context, tick time.Duration) error {
+	ticker := time.NewTicker(tick)
+	for {
+		select {
+		case <-ticker.C:
+			running, err := ps.IsRunning()
+			if !running && err == nil {
+				ps.State = Stopped
+				return nil
+			}
+		case <-ctx.Done():
+			err := ps.Kill()
+			if err == nil {
+				ps.State = Killed
+			} else if err == os.ErrProcessDone {
+				ps.State = Stopped
+			} else {
+				return err
+			}
+			return nil
+		}
+	}
 }
 
 // StopResult represents a container for root and child processes after stop attempt.
@@ -87,6 +115,7 @@ func Stop(opts Options) (StopResult, error) {
 	proc, err := process.NewProcess(int32(opts.Pid))
 	sr := newStopResult(proc)
 
+	// Return if the process is not running.
 	if err != nil {
 		if opts.IgnoreAbsent {
 			return sr, nil
@@ -95,6 +124,7 @@ func Stop(opts Options) (StopResult, error) {
 		}
 	}
 
+	// Build the process tree.
 	tree := []process.Process{}
 	if opts.Tree {
 		err := GetTree(*proc, &tree, false)
@@ -103,31 +133,32 @@ func Stop(opts Options) (StopResult, error) {
 		}
 	}
 
-	sr = stop(*proc, tree, opts.Answer)
+	// Try to stop processes gracefully.
+	sr = stop(*proc, tree, opts.Answer) // TODO: Assign stop() to ProcState + move superficial logic here + one loop?
+
+	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	defer cancel()
 	var endErr error
 
-	// No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
-	for _, child := range sr.Children {
-		if child.State == Running {
-			err = child.Kill()
-			if err == nil {
-				child.State = Killed
-			} else if err == os.ErrProcessDone {
-				child.State = Stopped
-			} else {
+	// Wait for child processes to stop in the allotted time and kill after timeout.
+	var wg sync.WaitGroup
+	for _, child := range sr.Children { // No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
+		child := child
+		wg.Add(1)
+		go func() {
+			err = child.killWithContext(ctx, 100*time.Millisecond)
+			if endErr == nil {
 				endErr = err
 			}
-		}
+			wg.Done()
+		}()
 	}
-	if sr.Root.State == Running {
-		err = sr.Root.Kill()
-		if err == nil {
-			sr.Root.State = Killed
-		} else if err == os.ErrProcessDone {
-			sr.Root.State = Stopped
-		} else {
-			endErr = err
-		}
+	wg.Wait()
+
+	// Wait for root process to stop in the allotted time and kill after timeout.
+	err = sr.Root.killWithContext(ctx, 100*time.Millisecond)
+	if endErr == nil {
+		endErr = err
 	}
 
 	return sr, endErr
@@ -138,6 +169,7 @@ func Stop(opts Options) (StopResult, error) {
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
+// TODO: Assign to ProcState?
 func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error {
 	children, err := proc.Children()
 	if err == process.ErrorNoChildren {
@@ -169,7 +201,7 @@ func newStopResult(proc *process.Process) StopResult {
 	return StopResult{
 		Root: ProcState{
 			Process: proc,
-			State: Running,
+			State:   Running,
 		},
 		Children: []ProcState{},
 	}

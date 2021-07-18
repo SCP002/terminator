@@ -28,7 +28,7 @@ func main() {
 		Pid:          cmd.Process.Pid,
 		IgnoreAbsent: false,
 		Tree:         true,
-		Timeout:      5000,
+		Timeout:      5 * time.Second,
 		Answer:       "",
 	}
 	sr, err := terminator.Stop(opts)

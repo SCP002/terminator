@@ -29,6 +29,8 @@ var (
 
 // stop tries to gracefully terminate the process.
 func stop(proc process.Process, tree []process.Process, answer string) StopResult {
+	// Error checks after each attempt are done to improve performance as sendSig() is expensive operation.
+
 	sr := newStopResult(&proc)
 	// Close each child if given.
 	for _, child := range tree {

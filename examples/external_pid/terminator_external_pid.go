@@ -17,7 +17,7 @@ func main() {
 		Pid:          pid,
 		IgnoreAbsent: false,
 		Tree:         true,
-		Timeout:      5000,
+		Timeout:      5 * time.Second,
 		Answer:       "",
 	}
 	sr, err := terminator.Stop(opts)
