@@ -11,7 +11,6 @@ import (
 	"unsafe"
 
 	"github.com/gonutz/w32/v2"
-	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/windows"
 
 	pErrors "github.com/SCP002/terminator/internal/errors"
@@ -28,81 +27,45 @@ var (
 )
 
 // stop tries to gracefully terminate the process.
-func stop(proc process.Process, tree []process.Process, answer string) StopResult {
-	// Error checks after each attempt are done to improve performance as sendSig() is expensive operation.
+func (ps *ProcState) stop(answer string) {
+	// Error checks after each attempt are done to improve performance as most of the operations are expensive, while
+	// processes are often stop immediately.
 
-	sr := newStopResult(&proc)
-	// Close each child if given.
-	for _, child := range tree {
-		ps := ProcState{Process: &child}
-
-		// Try Ctrl + C.
-		err := sendCtrlC(int(child.Pid))
-		if _, died := err.(pErrors.ProcDied); died {
-			ps.State = Died
-			sr.Children = append(sr.Children, ps)
-			continue
-		}
-		if err == nil {
-			if running, err := child.IsRunning(); !running && err == nil {
-				ps.State = Stopped
-				sr.Children = append(sr.Children, ps)
-				continue
-			}
-		}
-		// Try Ctrl + Break.
-		if err := sendCtrlBreak(int(child.Pid)); err == nil {
-			if running, err := child.IsRunning(); !running && err == nil {
-				ps.State = Stopped
-				sr.Children = append(sr.Children, ps)
-				continue
-			}
-		}
-		// Try to close the window.
-		if err := closeWindow(int(child.Pid), false, false); err == nil {
-			if running, err := child.IsRunning(); !running && err == nil {
-				ps.State = Stopped
-				sr.Children = append(sr.Children, ps)
-			}
-		}
-	}
-	// Close the root process.
 	// Try Ctrl + C.
-	err := sendCtrlC(int(proc.Pid))
+	err := sendCtrlC(int(ps.Pid))
 	if _, died := err.(pErrors.ProcDied); died {
-		sr.Root.State = Died
-		return sr
+		ps.State = Died
+		return
 	}
 	if err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			sr.Root.State = Stopped
-			return sr
+		if running, err := ps.IsRunning(); !running && err == nil {
+			ps.State = Stopped
+			return
 		}
 	}
 	// Try Ctrl + Break.
-	if err := sendCtrlBreak(int(proc.Pid)); err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			sr.Root.State = Stopped
-			return sr
+	if err := sendCtrlBreak(int(ps.Pid)); err == nil {
+		if running, err := ps.IsRunning(); !running && err == nil {
+			ps.State = Stopped
+			return
 		}
 	}
 	// Try to write an answer.
 	if answer != "" {
-		if err := writeAnswer(int(proc.Pid), answer); err == nil {
-			if running, err := proc.IsRunning(); !running && err == nil {
-				sr.Root.State = Stopped
-				return sr
+		if err := writeAnswer(int(ps.Pid), answer); err == nil {
+			if running, err := ps.IsRunning(); !running && err == nil {
+				ps.State = Stopped
+				return
 			}
 		}
 	}
 	// Try to close the window.
-	if err := closeWindow(int(proc.Pid), false, false); err == nil {
-		if running, err := proc.IsRunning(); !running && err == nil {
-			sr.Root.State = Stopped
-			return sr
+	if err := closeWindow(int(ps.Pid), false, false); err == nil {
+		if running, err := ps.IsRunning(); !running && err == nil {
+			ps.State = Stopped
+			return
 		}
 	}
-	return sr
 }
 
 // sendCtrlC sends a CTRL_C_EVENT to the process.
