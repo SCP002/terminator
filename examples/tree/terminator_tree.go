@@ -42,7 +42,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}
-	prettySr, _ := json.MarshalIndent(sr, "", "\t")
+	prettySr, _ := json.MarshalIndent(sr, "", "    ")
 	fmt.Println(string(prettySr))
 
 	fmt.Println("Continuing execution of caller")
