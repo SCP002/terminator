@@ -20,6 +20,9 @@ type Options struct {
 	// Time allotted for the process to stop gracefully before it get killed.
 	Timeout time.Duration
 
+	// The interval at which the process status check will be performed to kill after timeout.
+	Tick time.Duration
+
 	// If not empty, is a message to send to input of the target console after a signal is sent.
 	//
 	// --- On Windows: ---
@@ -163,7 +166,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 		if child.State == Running {
 			wg.Add(1)
 			go func() {
-				err = child.killWithContext(ctx, 100*time.Millisecond)
+				err = child.killWithContext(ctx, opts.Tick)
 				if endErr == nil {
 					endErr = err
 				}
@@ -175,7 +178,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 
 	// Wait for root process to stop in the allotted time and kill after timeout.
 	if sr.Root.State == Running {
-		err = sr.Root.killWithContext(ctx, 100*time.Millisecond)
+		err = sr.Root.killWithContext(ctx, opts.Tick)
 		if endErr == nil {
 			endErr = err
 		}

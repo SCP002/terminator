@@ -35,6 +35,7 @@ func main() {
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
+		Tick:         100 * time.Millisecond,
 		Answer:       "Y\r\n",
 	}
 	sr, err := terminator.Stop(cmd.Process.Pid, opts)
