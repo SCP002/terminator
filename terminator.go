@@ -11,9 +11,6 @@ import (
 
 // Options respresents options to stop a process.
 type Options struct {
-	// Identifier of the process to stop.
-	Pid int
-
 	// Do not return error if process is not running (nothing to stop)?
 	IgnoreAbsent bool
 
@@ -121,8 +118,8 @@ func newStopResult(proc *process.Process) StopResult {
 //
 // Returns an error if the process does not exist (if IgnoreAbsent is "false"), if an internal error is happened, or if
 // failed to kill the root process or any child (if Tree is "true").
-func Stop(opts Options) (StopResult, error) {
-	proc, err := process.NewProcess(int32(opts.Pid))
+func Stop(pid int, opts Options) (StopResult, error) {
+	proc, err := process.NewProcess(int32(pid))
 	sr := newStopResult(proc)
 
 	// Return if the process is not running.
@@ -187,12 +184,13 @@ func Stop(opts Options) (StopResult, error) {
 	return sr, endErr
 }
 
+// TODO: Kill()
+
 // GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
 //
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
-// TODO: Assign to ProcState?
 func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error {
 	children, err := proc.Children()
 	if err == process.ErrorNoChildren {

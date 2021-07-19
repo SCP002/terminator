@@ -14,13 +14,12 @@ func main() {
 	fmt.Scanln(&pid)
 
 	opts := terminator.Options{
-		Pid:          pid,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Answer:       "",
 	}
-	sr, err := terminator.Stop(opts)
+	sr, err := terminator.Stop(pid, opts)
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}

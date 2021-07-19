@@ -25,13 +25,12 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	opts := terminator.Options{
-		Pid:          cmd.Process.Pid,
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Answer:       "",
 	}
-	sr, err := terminator.Stop(opts)
+	sr, err := terminator.Stop(cmd.Process.Pid, opts)
 	if err != nil {
 		fmt.Println("Stop failed with:", err)
 	}
