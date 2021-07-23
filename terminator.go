@@ -10,7 +10,7 @@ import (
 )
 
 // Options respresents options to stop a process.
-type Options struct {
+type Options struct { // TODO: Pid > Answer map?
 	// Do not return error if process is not running (nothing to stop)?
 	IgnoreAbsent bool
 
@@ -144,7 +144,6 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	}
 
 	// Try to stop child processes gracefully.
-	// TODO: One loop with kill?
 	for i := range tree {
 		child := &tree[i]
 		ps := newProcState(child)
@@ -167,7 +166,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 			wg.Add(1)
 			go func() {
 				err = child.killWithContext(ctx, opts.Tick)
-				if endErr == nil {
+				if err != nil {
 					endErr = err
 				}
 				wg.Done()
@@ -179,7 +178,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	// Wait for root process to stop in the allotted time and kill after timeout.
 	if sr.Root.State == Running {
 		err = sr.Root.killWithContext(ctx, opts.Tick)
-		if endErr == nil {
+		if err != nil {
 			endErr = err
 		}
 	}
@@ -187,7 +186,54 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	return sr, endErr
 }
 
-// TODO: Kill()
+// Kill terminates the process.
+//
+// ignoreAbsent: Do not return error if process is not running (nothing to kill)?
+//
+// withTree: stop the specified process and any child processes which were started by it?
+//
+// Returns an error if the process does not exist (if ignoreAbsent is "false"), if an internal error is happened, or if
+// failed to kill the root process or any child (if withTree is "true").
+func Kill(pid int, ignoreAbsent bool, withTree bool) error {
+	proc, err := process.NewProcess(int32(pid))
+
+	// Return if the process is not running.
+	if err != nil {
+		if ignoreAbsent {
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	// Build the process tree.
+	tree := []process.Process{}
+	if withTree {
+		err := GetTree(*proc, &tree, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	var endErr error
+
+	// Try to kill child processes.
+	for i := range tree {
+		child := &tree[i]
+		err = child.Kill()
+		if err != os.ErrProcessDone && err != nil {
+			endErr = err
+		}
+	}
+
+	// Try to kill the root process.
+	err = proc.Kill()
+	if err != os.ErrProcessDone && err != nil {
+		endErr = err
+	}
+
+	return endErr
+}
 
 // GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
 //
