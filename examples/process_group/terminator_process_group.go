@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -13,7 +14,12 @@ import (
 )
 
 func main() {
-	cmd := exec.Command("sample_process_group.cmd")
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Failed to get current workng directory:", err)
+	}
+
+	cmd := exec.Command(filepath.Join(currentDir, "sample_process_group.cmd"))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -23,7 +29,7 @@ func main() {
 	attr.NoInheritHandles = true
 	cmd.SysProcAttr = &attr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		fmt.Println("Start failed with:", err)
 	}
