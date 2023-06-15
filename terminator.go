@@ -135,9 +135,9 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	}
 
 	// Build the process tree.
-	tree := []process.Process{}
+	tree := []*process.Process{}
 	if opts.Tree {
-		err := GetTree(*proc, &tree, false)
+		err := GetTree(proc, &tree, false)
 		if err != nil {
 			return sr, err
 		}
@@ -145,7 +145,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 
 	// Try to stop child processes gracefully.
 	for i := range tree {
-		child := &tree[i]
+		child := tree[i]
 		ps := newProcState(child)
 		ps.stop("")
 		sr.Children = append(sr.Children, ps)
@@ -207,9 +207,9 @@ func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 	}
 
 	// Build the process tree.
-	tree := []process.Process{}
+	tree := []*process.Process{}
 	if withTree {
-		err := GetTree(*proc, &tree, false)
+		err := GetTree(proc, &tree, false)
 		if err != nil {
 			return err
 		}
@@ -219,7 +219,7 @@ func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 
 	// Try to kill child processes.
 	for i := range tree {
-		child := &tree[i]
+		child := tree[i]
 		err = child.Kill()
 		if err != os.ErrProcessDone && err != nil {
 			endErr = err
@@ -240,7 +240,7 @@ func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the "withRoot" argument is set to "true", include the root process.
-func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error {
+func GetTree(proc *process.Process, tree *[]*process.Process, withRoot bool) error {
 	children, err := proc.Children()
 	if err == process.ErrorNoChildren {
 		return nil
@@ -252,12 +252,12 @@ func GetTree(proc process.Process, tree *[]process.Process, withRoot bool) error
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		// Call self to collect descendants.
-		err := GetTree(*child, tree, false)
+		err := GetTree(child, tree, false)
 		if err != nil {
 			return err
 		}
 		// Add the child after it's descendants.
-		*tree = append(*tree, *child)
+		*tree = append(*tree, child)
 	}
 	// Add the root process to the end.
 	if withRoot {

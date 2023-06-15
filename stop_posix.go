@@ -35,7 +35,7 @@ func (ps *ProcState) stop(answer string) {
 	}
 	// Try to write an answer.
 	if answer != "" {
-		if err := writeAnswer(*ps.Process, answer); err == nil {
+		if err := writeAnswer(ps.Process, answer); err == nil {
 			if running, err := ps.IsRunning(); !running && err == nil {
 				ps.State = Stopped
 				return
@@ -47,7 +47,7 @@ func (ps *ProcState) stop(answer string) {
 // writeAnswer writes an answer message to the console process.
 //
 // Requires root privilegies (e.g. run as sudo).
-func writeAnswer(proc process.Process, answer string) error {
+func writeAnswer(proc *process.Process, answer string) error {
 	term, err := proc.Terminal()
 	if err != nil {
 		return err
