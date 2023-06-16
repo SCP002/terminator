@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/gonutz/w32/v2 v2.9.0
+	github.com/samber/lo v1.38.1
 	github.com/shirou/gopsutil/v3 v3.23.5
 	golang.org/x/sys v0.9.0
 )
@@ -16,4 +17,5 @@ require (
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
 )

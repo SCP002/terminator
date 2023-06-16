@@ -107,7 +107,7 @@ func newStopResult(proc *process.Process) StopResult {
 //
 // A Ctrl + Break signal (can be caught as a SIGINT).
 //
-// A WM_CLOSE message (as if the user is closing the window, can be caught as a SIGTERM).
+// A WM_CLOSE (WM_QUIT for UWP apps) message (as if the user is closing the window, can be caught as a SIGTERM).
 //
 // TerminateProcess syscall as a fallback.
 //
