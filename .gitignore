@@ -9,6 +9,7 @@
 !/go.mod
 !/go.sum
 !/go.work
+!/go.work.sum
 !/LICENSE
 !/README.md
 
