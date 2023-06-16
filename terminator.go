@@ -43,7 +43,7 @@ type Options struct { // TODO: Pid > Answer map?
 // State represents the process state.
 type State string
 
-const (
+const ( // TODO: Set initial state to "Unknown"
 	Running State = "Running" // Initial state.
 	Stopped State = "Stopped" // Stopped gracefully.
 	Killed  State = "Killed"  // Killed by force.
