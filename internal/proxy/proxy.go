@@ -14,8 +14,8 @@ import (
 	"signal": Sends a signal to a process and terminates with it.
 	"answer": Writes a message to the standard input of a process.
 
-	Initially meant to be built with -ldflags -H=windowsgui build options to not to flash with the console during it's
-	short life time and to not to call "FreeConsole" for nothing, but it will trigger false antivirus alarms.
+	Meant to be built with -ldflags "-H=windowsgui" build options to not to flash with the console during it's
+	short life time and to not to call "FreeConsole" for nothing.
 */
 
 func main() {
