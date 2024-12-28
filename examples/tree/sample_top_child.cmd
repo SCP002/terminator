@@ -1,5 +1,5 @@
 @Echo Off
-ChCp 65001 >Nul
+ChCp 65001 > Nul
 
 Title Top child
 

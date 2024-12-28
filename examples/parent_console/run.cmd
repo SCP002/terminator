@@ -1,20 +1,20 @@
 @Echo Off
-ChCp 65001 >Nul
+ChCp 65001 > Nul
 
 Cls
 
-:: Update dependencies
+Rem Update dependencies
 go get -u ./...
 
-:: Clear unused dependencies
+Rem Clear unused dependencies
 go mod tidy
 
-:: Build internal dependencies
+Rem Build internal dependencies
 PushD "..\..\scripts"
 Call "build_dependencies.cmd"
 PopD
 
-:: Run
+Rem Run
 go run "terminator_parent_console.go"
 
 Exit /B 0

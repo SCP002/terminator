@@ -1,9 +1,9 @@
 @Echo Off
-ChCp 65001 >Nul
+ChCp 65001 > Nul
 
 Cls
 
-:: Build internal dependencies
+Rem Build internal dependencies
 PushD "..\internal\proxy"
 Call ".\build.cmd"
 PopD
