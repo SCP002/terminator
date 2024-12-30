@@ -1,9 +1,12 @@
-package answer
+//go:build windows
+
+package message
 
 import (
 	"os"
 	"unsafe"
 
+	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 
 	"github.com/SCP002/terminator/internal/proxy/codes"
@@ -36,7 +39,7 @@ const (
 	keyEvent uint16 = 0x0001
 )
 
-// Send sends an answer to the input of the target console.
+// Send sends an answer `msg` to the input of the target console with `pid`.
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
@@ -46,19 +49,19 @@ func Send(pid int, msg string) {
 		os.Exit(codes.NoMessage)
 	}
 
-	k32 := windows.NewLazyDLL("kernel32.dll")
+	kernel32 := windows.NewLazyDLL("kernel32.dll")
 
 	// Attach to the target process console.
-	k32Proc := k32.NewProc("AttachConsole")
-	r1, _, err := k32Proc.Call(uintptr(pid))
+	attachConsole := kernel32.NewProc("AttachConsole")
+	r1, _, err := attachConsole.Call(uintptr(pid))
 	if r1 == 0 {
-		if err == windows.ERROR_ACCESS_DENIED {
+		if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
 			os.Exit(codes.CallerAlreadyAttached)
 		}
-		if err == windows.ERROR_INVALID_HANDLE {
+		if errors.Is(err, windows.ERROR_INVALID_HANDLE) {
 			os.Exit(codes.TargetHaveNoConsole)
 		}
-		if err == windows.ERROR_INVALID_PARAMETER {
+		if errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
 			os.Exit(codes.ProcessDoesNotExist)
 		}
 		os.Exit(codes.AttachFailed)
@@ -72,10 +75,10 @@ func Send(pid int, msg string) {
 	if err != nil {
 		os.Exit(codes.ConvertMsgFailed)
 	}
-	k32Proc = k32.NewProc("WriteConsoleInputW")
+	writeConsoleInputW := kernel32.NewProc("WriteConsoleInputW")
 	var written uint32 = 0
 	var toWrite uint32 = uint32(len(inpRecList))
-	r1, _, _ = k32Proc.Call(
+	r1, _, _ = writeConsoleInputW.Call(
 		os.Stdin.Fd(),
 		// Actually passing the whole slice. Must be [0] due the way syscall works.
 		uintptr(unsafe.Pointer(&inpRecList[0])),
@@ -88,14 +91,14 @@ func Send(pid int, msg string) {
 	}
 }
 
-// strToInputRecords converts a string into a slice of inputRecord, see:
+// strToInputRecords converts `msg` into a slice of inputRecord, see:
 //
 // https://docs.microsoft.com/en-us/windows/console/input-record-str.
 func strToInputRecords(msg string) ([]inputRecord, error) {
 	records := []inputRecord{}
 	utf16chars, err := windows.UTF16FromString(msg)
 	if err != nil {
-		return records, err
+		return records, errors.Wrap(err, "Convert string to input records")
 	}
 	for _, char := range utf16chars {
 		record := inputRecord{

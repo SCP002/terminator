@@ -1,3 +1,5 @@
+//go:build windows
+
 package main
 
 import (
@@ -16,7 +18,7 @@ import (
 func main() {
 	currentDir, err := os.Getwd()
 	if err != nil {
-		fmt.Println("Failed to get current workng directory:", err)
+		fmt.Printf("Failed to get current workng directory: %v\n", err)
 	}
 
 	cmd := exec.Command(filepath.Join(currentDir, "sample_top_child.cmd"))
@@ -31,7 +33,7 @@ func main() {
 
 	err = cmd.Start()
 	if err != nil {
-		fmt.Println("Start failed with:", err)
+		fmt.Printf("Start failed with: %v\n", err)
 	}
 
 	fmt.Println("Process started")
@@ -42,11 +44,11 @@ func main() {
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Tick:         100 * time.Millisecond,
-		Answer:       "Y\r\n",
+		Message:      "Y\r\n",
 	}
 	sr, err := terminator.Stop(cmd.Process.Pid, opts)
 	if err != nil {
-		fmt.Println("Stop failed with:", err)
+		fmt.Printf("Stop failed with: %v\n", err)
 	}
 	prettySr, _ := json.MarshalIndent(sr, "", "    ")
 	fmt.Println(string(prettySr))
@@ -55,5 +57,5 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	fmt.Print("Press <Enter> to exit...")
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 }

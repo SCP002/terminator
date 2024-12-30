@@ -11,18 +11,18 @@ import (
 func main() {
 	fmt.Print("The PID to terminate: ")
 	var pid int
-	fmt.Scanln(&pid)
+	_, _ = fmt.Scanln(&pid)
 
 	opts := terminator.Options{
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Tick:         100 * time.Millisecond,
-		Answer:       "",
+		Message:      "",
 	}
 	sr, err := terminator.Stop(pid, opts)
 	if err != nil {
-		fmt.Println("Stop failed with:", err)
+		fmt.Printf("Stop failed with: %v\n", err)
 	}
 	prettySr, _ := json.MarshalIndent(sr, "", "    ")
 	fmt.Println(string(prettySr))
@@ -31,5 +31,5 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	fmt.Print("Press <Enter> to exit...")
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 }

@@ -2,15 +2,17 @@ package terminator
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/process"
+	"github.com/cockroachdb/errors"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 // Options respresents options to stop a process.
-type Options struct { // TODO: Pid > Answer map?
+type Options struct { // TODO: Pid to Message map?
 	// Do not return error if process is not running (nothing to stop)?
 	IgnoreAbsent bool
 
@@ -37,69 +39,75 @@ type Options struct { // TODO: Pid > Answer map?
 	// --- On POSIX: ---
 	//
 	// It must end with "\n" to be sent.
-	Answer string
+	Message string
 }
 
 // State represents the process state.
 type State string
 
 const ( // TODO: Set initial state to "Unknown"
-	Running State = "Running" // Initial state.
+	Running State = "Running" // Is running.
 	Stopped State = "Stopped" // Stopped gracefully.
-	Killed  State = "Killed"  // Killed by force.
+	Killed  State = "Killed"  // Killed forcibly.
 	Died    State = "Died"    // Terminated by unknown reason (killed by another process etc).
 )
 
-// ProcState represents the gopsutil process with status after stop attempt.
-type ProcState struct {
+// ProcessExt represents gopsutil process extended with state info.
+type ProcessExt struct {
 	*process.Process
 	State State
 }
 
-// newProcState returns the new default ProcState instance.
-func newProcState(proc *process.Process) ProcState {
-	return ProcState{Process: proc, State: Running}
+// newProcState returns the new default ProcState instance from gopsutil process `proc`.
+func newProcessExt(proc *process.Process) ProcessExt {
+	return ProcessExt{Process: proc, State: Running}
 }
 
-// killWithContext returns as soon as the process is stopped and kills when the context Done channel returns.
+// killWithContext returns as soon as the process is stopped and kills when the context `ctx` Done() channel returns.
 //
-// tick argument is the interval at which the process status check will be performed.
-func (ps *ProcState) killWithContext(ctx context.Context, tick time.Duration) error {
+// `tick` is the interval at which the process status check will be performed.
+func (procExt *ProcessExt) killWithContext(ctx context.Context, tick time.Duration) error {
 	ticker := time.NewTicker(tick)
 	for {
 		select {
 		case <-ticker.C:
-			running, err := ps.IsRunning()
+			running, err := procExt.IsRunning()
 			if !running && err == nil {
-				ps.State = Stopped
+				procExt.State = Stopped
 				return nil
 			}
 		case <-ctx.Done():
-			err := ps.Kill()
+			err := procExt.Kill()
 			if err == nil {
-				ps.State = Killed
-			} else if err == os.ErrProcessDone {
-				ps.State = Stopped
+				procExt.State = Killed
+			} else if errors.Is(err, os.ErrProcessDone) {
+				procExt.State = Stopped
 			} else {
-				return err
+				return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", procExt.Pid))
 			}
 			return nil
 		}
 	}
 }
 
-// StopResult represents a container for root and child processes after stop attempt.
+// StopResult represents mapping between PID's and current state for root and child processes.
 type StopResult struct {
-	Root     ProcState
-	Children []ProcState
+	Root     map[int32]State
+	Children map[int32]State
 }
 
-// newStopResult returns the new default StopResult instance.
-func newStopResult(proc *process.Process) StopResult {
-	return StopResult{Root: newProcState(proc), Children: []ProcState{}}
+// newStopResult returns new default StopResult instance with root process pid `rootPid`.
+func newStopResult(rootPid int32) StopResult {
+	return StopResult{
+		Root:     map[int32]State{rootPid: Running},
+		Children: map[int32]State{},
+	}
 }
 
-// Stop tries to gracefully terminate the process.
+// Stop tries to gracefully terminate a process with PID `pid` using options `opts`.
+//
+// Returns an error if process does not exist (if IgnoreAbsent option is set to false), if an internal error is happened
+// or if failed to kill the root process or any child (if Tree option is set to true).
 //
 // --- On Windows it sequentially sends: ---
 //
@@ -118,41 +126,41 @@ func newStopResult(proc *process.Process) StopResult {
 // A SIGTERM signal.
 //
 // A SIGKILL signal as a fallback.
-//
-// Returns an error if the process does not exist (if IgnoreAbsent is "false"), if an internal error is happened, or if
-// failed to kill the root process or any child (if Tree is "true").
 func Stop(pid int, opts Options) (StopResult, error) {
-	proc, err := process.NewProcess(int32(pid))
-	sr := newStopResult(proc)
+	rootProc, err := process.NewProcess(int32(pid))
+	rootProcExt := newProcessExt(rootProc)
+	stopResult := newStopResult(rootProc.Pid)
 
 	// Return if the process is not running.
 	if err != nil {
 		if opts.IgnoreAbsent {
-			return sr, nil
+			return stopResult, nil
 		} else {
-			return sr, err
+			return stopResult, errors.Wrap(err, fmt.Sprintf("Stop process with PID %v", rootProc.Pid))
 		}
 	}
 
 	// Build the process tree.
 	tree := []*process.Process{}
 	if opts.Tree {
-		err := GetTree(proc, &tree, false)
+		err := GetTree(rootProc, &tree, false)
 		if err != nil {
-			return sr, err
+			return stopResult, errors.Wrap(err, fmt.Sprintf("Stop process with PID %v", rootProc.Pid))
 		}
 	}
 
+	childProcExtList := []ProcessExt{}
+
 	// Try to stop child processes gracefully.
-	for i := range tree {
-		child := tree[i]
-		ps := newProcState(child)
-		ps.stop("")
-		sr.Children = append(sr.Children, ps)
+	for _, child := range tree {
+		childProcExt := newProcessExt(child)
+		childProcExtList = append(childProcExtList, childProcExt)
+		childProcExt.stop("") // TODO: Message from pid map?
+		stopResult.Children[childProcExt.Pid] = childProcExt.State
 	}
 
 	// Try to stop the root process gracefully.
-	sr.Root.stop(opts.Answer)
+	rootProcExt.stop(opts.Message)
 
 	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
 	defer cancel()
@@ -160,9 +168,9 @@ func Stop(pid int, opts Options) (StopResult, error) {
 
 	// Wait for child processes to stop in the allotted time and kill after timeout.
 	var wg sync.WaitGroup
-	for i := range sr.Children { // No need for opts.Tree check, sr.Children is empty if opts.Tree is "false".
-		child := &sr.Children[i]
-		if child.State == Running {
+	// No need for `opts.Tree` check, `childProcExtList` is empty if `opts.Tree` is set to false.
+	for _, child := range childProcExtList {
+		if child.State == Running { // TODO: Use child.IsRunning()?
 			wg.Add(1)
 			go func() {
 				err = child.killWithContext(ctx, opts.Tick)
@@ -176,24 +184,24 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	wg.Wait()
 
 	// Wait for root process to stop in the allotted time and kill after timeout.
-	if sr.Root.State == Running {
-		err = sr.Root.killWithContext(ctx, opts.Tick)
+	if rootProcExt.State == Running {
+		err = rootProcExt.killWithContext(ctx, opts.Tick)
 		if err != nil {
 			endErr = err
 		}
 	}
 
-	return sr, endErr
+	return stopResult, endErr
 }
 
-// Kill terminates the process.
+// Kill terminates the process with PID `pid`.
 //
-// ignoreAbsent: Do not return error if process is not running (nothing to kill)?
+// If `ignoreAbsent` is true, do not return error if process is not running (nothing to kill).
 //
-// withTree: stop the specified process and any child processes which were started by it?
+// If `withTree` is true, kill the specified process and any child processes which were started by it.
 //
-// Returns an error if the process does not exist (if ignoreAbsent is "false"), if an internal error is happened, or if
-// failed to kill the root process or any child (if withTree is "true").
+// Returns an error if the process does not exist (if `ignoreAbsent` is set to false), if internal error is happened
+// or if failed to kill the root process or any child (if `withTree` is set to true).
 func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 	proc, err := process.NewProcess(int32(pid))
 
@@ -202,7 +210,7 @@ func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 		if ignoreAbsent {
 			return nil
 		} else {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", proc.Pid))
 		}
 	}
 
@@ -211,42 +219,42 @@ func Kill(pid int, ignoreAbsent bool, withTree bool) error {
 	if withTree {
 		err := GetTree(proc, &tree, false)
 		if err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", proc.Pid))
 		}
 	}
 
 	var endErr error
 
 	// Try to kill child processes.
-	for i := range tree {
-		child := tree[i]
+	for _, child := range tree {
 		err = child.Kill()
-		if err != os.ErrProcessDone && err != nil {
-			endErr = err
+		if !errors.Is(err, os.ErrProcessDone) && err != nil {
+			endErr = errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", child.Pid))
 		}
 	}
 
-	// Try to kill the root process.
+	// Try to kill root process.
 	err = proc.Kill()
-	if err != os.ErrProcessDone && err != nil {
-		endErr = err
+	if !errors.Is(err, os.ErrProcessDone) && err != nil {
+		endErr = errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", proc.Pid))
 	}
 
 	return endErr
 }
 
-// GetTree populates the "tree" argument with gopsutil Process instances of all descendants of the specified process.
+// GetTree populates the `tree` argument with gopsutil Process instances of all descendants of the specified process
+// `proc`.
 //
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
-// If the "withRoot" argument is set to "true", include the root process.
+// If the `withRoot“ argument is set to true, include the root process.
 func GetTree(proc *process.Process, tree *[]*process.Process, withRoot bool) error {
 	children, err := proc.Children()
-	if err == process.ErrorNoChildren {
+	if errors.Is(err, process.ErrorNoChildren) {
 		return nil
 	}
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("Get process tree for PID %v", proc.Pid))
 	}
 	// Iterate for each child process in reverse order.
 	for i := len(children) - 1; i >= 0; i-- {

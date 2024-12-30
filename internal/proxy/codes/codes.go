@@ -1,6 +1,6 @@
 package codes
 
-// Own exit codes. Not using iota for clarity.
+// Exit codes for proxy. Not using iota for clarity.
 
 const (
 	// Shared.
@@ -11,7 +11,7 @@ const (
 	CallerAlreadyAttached int = 3 // Calling process is already attached to a console.
 	TargetHaveNoConsole   int = 4 // Target process does not have a console.
 	ProcessDoesNotExist   int = 5 // Target process does not exist.
-	AttachFailed          int = 6 // AttachConsole failed for an unknown reason.
+	AttachFailed          int = 6 // AttachConsole failed for unknown reason.
 
 	// "signal" package.
 
@@ -19,7 +19,7 @@ const (
 	EnableCtrlCFailed int = 8 // SetConsoleCtrlHandler failed.
 	SendSigFailed     int = 9 // GenerateConsoleCtrlEvent failed.
 
-	// "answer" package.
+	// "message" package.
 
 	NoMessage int = 10 // Empty or no message specified.
 
@@ -35,6 +35,6 @@ const (
 	SetStdOutHandleFailed int = 18 // Failed to set standard output handler.
 	SetStdErrHandleFailed int = 19 // Failed to set standard error handler.
 
-	ConvertMsgFailed int = 20 // Failed to convert string message to an array of inputRecord.
-	WriteMsgFailed   int = 21 // Failed to write an array of inputRecord to the current console's input.
+	ConvertMsgFailed int = 20 // Failed to convert string message to array of inputRecord.
+	WriteMsgFailed   int = 21 // Failed to write array of inputRecord to the current console's input.
 )
