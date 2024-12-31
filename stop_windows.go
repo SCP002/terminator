@@ -33,9 +33,10 @@ func (procExt *ProcessExt) stop(msg string) {
 	// Error checks after each attempt are done to improve performance as most of the operations are expensive, while
 	// processes are often stop immediately.
 
+	var procDiedError pErrors.ProcDiedError
+
 	// Try Ctrl + C.
 	err := sendCtrlC(int(procExt.Pid))
-	var procDiedError pErrors.ProcDiedError
 	if errors.As(err, &procDiedError) {
 		procExt.State = Died
 		return
@@ -47,7 +48,12 @@ func (procExt *ProcessExt) stop(msg string) {
 		}
 	}
 	// Try Ctrl + Break.
-	if err := sendCtrlBreak(int(procExt.Pid)); err == nil {
+	err = sendCtrlBreak(int(procExt.Pid))
+	if errors.As(err, &procDiedError) {
+		procExt.State = Died
+		return
+	}
+	if err == nil {
 		if running, err := procExt.IsRunning(); !running && err == nil {
 			procExt.State = Stopped
 			return
@@ -55,7 +61,12 @@ func (procExt *ProcessExt) stop(msg string) {
 	}
 	// Try to write a message.
 	if msg != "" {
-		if err := writeMessage(int(procExt.Pid), msg); err == nil {
+		err = writeMessage(int(procExt.Pid), msg)
+		if errors.As(err, &procDiedError) {
+			procExt.State = Died
+			return
+		}
+		if err == nil {
 			if running, err := procExt.IsRunning(); !running && err == nil {
 				procExt.State = Stopped
 				return
