@@ -20,7 +20,7 @@ type Options struct { // TODO: Pid to Message map?
 	// Stop the specified process and any child processes which were started by it?
 	Tree bool
 
-	// Time allotted for the process to stop gracefully before it get killed.
+	// Time allotted for the process to stop gracefully before it gets killed.
 	Timeout time.Duration
 
 	// The interval at which the process status check will be performed to kill after timeout.
@@ -46,7 +46,8 @@ type Options struct { // TODO: Pid to Message map?
 // State represents the process state.
 type State string
 
-const ( // TODO: Set initial state to "Unknown"
+const (
+	Unknown State = "Unknown" // Unknown.
 	Running State = "Running" // Is running.
 	Stopped State = "Stopped" // Stopped gracefully.
 	Killed  State = "Killed"  // Killed forcibly.
@@ -60,8 +61,9 @@ type ProcessExt struct {
 }
 
 // newProcState returns the new default ProcState instance from gopsutil process `proc`.
-func newProcessExt(proc *process.Process) ProcessExt {
-	return ProcessExt{Process: proc, State: Running}
+func newProcessExt(proc *process.Process) *ProcessExt {
+	isRunning, err := proc.IsRunning()
+	return &ProcessExt{Process: proc, State: lo.Ternary(isRunning && err == nil, Running, Unknown)}
 }
 
 // killWithContext returns as soon as the process is stopped and kills when the context `ctx` Done() channel returns.
@@ -97,15 +99,15 @@ type StopResult struct {
 	Children map[int32]State
 }
 
-// newStopResult returns new default StopResult instance with root process pid `rootPid`.
-func newStopResult(rootPid int32) StopResult {
+// newStopResult returns new default StopResult instance.
+func newStopResult() StopResult {
 	return StopResult{
-		Root:     map[int32]State{rootPid: Running},
+		Root:     map[int32]State{},
 		Children: map[int32]State{},
 	}
 }
 
-// Stop tries to gracefully terminate a process with PID `pid` using options `opts`.
+// StopThenKill tries to gracefully terminate a process with PID `pid` using options `opts` with fallback to killing.
 //
 // Returns an error if process does not exist (if IgnoreAbsent option is set to false), if an internal error is happened
 // or if failed to kill the root process or any child (if Tree option is set to true).
@@ -127,9 +129,9 @@ func newStopResult(rootPid int32) StopResult {
 // A SIGTERM signal.
 //
 // A SIGKILL signal as a fallback.
-func Stop(pid int, opts Options) (StopResult, error) {
+func StopThenKill(pid int, opts Options) (StopResult, error) {
 	rootProc, err := process.NewProcess(int32(pid))
-	stopResult := newStopResult(rootProc.Pid)
+	stopResult := newStopResult()
 
 	// Return if the process is not running.
 	if err != nil {
@@ -151,13 +153,12 @@ func Stop(pid int, opts Options) (StopResult, error) {
 
 	// Build ProcessExt list.
 	childProcExtList := lo.Map(tree, func(proc *process.Process, _ int) *ProcessExt {
-		p := newProcessExt(proc)
-		return &p
+		return newProcessExt(proc)
 	})
 
 	// Try to stop child processes gracefully.
 	for _, childProcExt := range childProcExtList {
-		childProcExt.stop("")
+		childProcExt.stop("") // TODO: Message from pid to message map
 	}
 
 	// Try to stop the root process gracefully.
@@ -172,7 +173,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	var wg sync.WaitGroup
 	// No need for `opts.Tree` check, `childProcExtList` is empty if `opts.Tree` is set to false.
 	for _, child := range childProcExtList {
-		if child.State == Running { // TODO: Use child.IsRunning()?
+		if running, _ := child.IsRunning(); running {
 			wg.Add(1)
 			go func() {
 				err = child.killWithContext(ctx, opts.Tick)
@@ -186,7 +187,7 @@ func Stop(pid int, opts Options) (StopResult, error) {
 	wg.Wait()
 
 	// Wait for root process to stop in the allotted time and kill after timeout.
-	if rootProcExt.State == Running {
+	if running, _ := rootProcExt.IsRunning(); running {
 		err = rootProcExt.killWithContext(ctx, opts.Tick)
 		if err != nil {
 			endErr = err

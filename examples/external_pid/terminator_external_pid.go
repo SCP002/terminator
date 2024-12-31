@@ -20,11 +20,11 @@ func main() {
 		Tick:         100 * time.Millisecond,
 		Message:      "",
 	}
-	sr, err := terminator.Stop(pid, opts)
+	sr, err := terminator.StopThenKill(pid, opts)
 	if err != nil {
 		fmt.Printf("Stop failed with: %v\n", err)
 	}
-	prettySr, _ := json.MarshalIndent(sr, "", "    ")
+	prettySr, _ := json.MarshalIndent(sr, "", "  ")
 	fmt.Println(string(prettySr))
 
 	fmt.Println("Continuing execution of caller")
