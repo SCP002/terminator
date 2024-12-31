@@ -39,16 +39,16 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	opts := terminator.Options{
+	opts := terminator.StopOrKillOptions{
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Tick:         100 * time.Millisecond,
 		Message:      "Y\r\n",
 	}
-	sr, err := terminator.StopThenKill(cmd.Process.Pid, opts)
+	sr, err := terminator.StopOrKill(cmd.Process.Pid, opts)
 	if err != nil {
-		fmt.Printf("Stop failed with: %v\n", err)
+		fmt.Printf("StopOrKill failed with: %v\n", err)
 	}
 	prettySr, _ := json.MarshalIndent(sr, "", "  ")
 	fmt.Println(string(prettySr))

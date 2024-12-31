@@ -11,36 +11,47 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
+// TODO: Should return error
 // stop tries to gracefully terminate the process and write a message `msg` to stdin if it's not empty.
 func (procExt *ProcessExt) stop(msg string) {
 	// Error checks after each attempt are done to be consistent with implementation for Windows.
 
 	// Try SIGINT.
 	err := procExt.SendSignal(syscall.SIGINT)
-	if errors.Is(err, os.ErrProcessDone) {
+	running, _ := procExt.IsRunning()
+	if err == nil {
+		if !running {
+			procExt.State = Stopped
+			return
+		}
+	} else if !running {
 		procExt.State = Died
 		return
 	}
-	if err == nil {
-		if running, err := procExt.IsRunning(); !running && err == nil {
-			procExt.State = Stopped
-			return
-		}
-	}
 	// Try SIGTERM.
-	if err := procExt.Terminate(); err == nil {
-		if running, err := procExt.IsRunning(); !running && err == nil {
+	err = procExt.Terminate()
+	running, _ = procExt.IsRunning()
+	if err == nil {
+		if !running {
 			procExt.State = Stopped
 			return
 		}
+	} else if !running {
+		procExt.State = Died
+		return
 	}
 	// Try to write a message.
 	if msg != "" {
-		if err := writeMessage(procExt.Process, msg); err == nil {
-			if running, err := procExt.IsRunning(); !running && err == nil {
+		err = writeMessage(procExt.Process, msg)
+		running, _ := procExt.IsRunning()
+		if err == nil {
+			if !running {
 				procExt.State = Stopped
 				return
 			}
+		} else if !running {
+			procExt.State = Died
+			return
 		}
 	}
 }

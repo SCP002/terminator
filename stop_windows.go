@@ -40,46 +40,64 @@ func newErrProcDied(pid int) ErrProcDied {
 	return ErrProcDied{PID: pid}
 }
 
+// ErrBadExitCode indicates that process exited with unexpected exit code.
+type ErrBadExitCode struct {
+	Code     int
+	ProcName string
+}
+
+// Error is used to implement error interface.
+func (e ErrBadExitCode) Error() string {
+	return fmt.Sprintf("%v process exited with unexpected exit code %v", e.ProcName, e.Code)
+}
+
+// newErrBadExitCode returns new ErrBadExitCode.
+func newErrBadExitCode(code int, procName string) ErrBadExitCode {
+	return ErrBadExitCode{Code: code, ProcName: procName}
+}
+
+// TODO: Should return error
 // stop tries to gracefully terminate the process and write a message `msg` to stdin if it's not empty.
 func (procExt *ProcessExt) stop(msg string) {
 	// Error checks after each attempt are done to improve performance as most of the operations are expensive, while
 	// processes are often stop immediately.
 
-	var errProcDied ErrProcDied
-
 	// Try Ctrl + C.
 	err := sendCtrlC(int(procExt.Pid))
-	if errors.As(err, &errProcDied) {
-		procExt.State = Died
-		return
-	} else if err == nil {
-		if running, err := procExt.IsRunning(); !running && err == nil {
+	running, _ := procExt.IsRunning()
+	if err == nil {
+		if !running {
 			procExt.State = Stopped
 			return
 		}
+	} else if !running {
+		procExt.State = Died
+		return
 	}
 	// Try Ctrl + Break.
 	err = sendCtrlBreak(int(procExt.Pid))
-	if errors.As(err, &errProcDied) {
-		procExt.State = Died
-		return
-	} else if err == nil {
-		if running, err := procExt.IsRunning(); !running && err == nil {
+	running, _ = procExt.IsRunning()
+	if err == nil {
+		if !running {
 			procExt.State = Stopped
 			return
 		}
+	} else if !running {
+		procExt.State = Died
+		return
 	}
 	// Try to write a message.
 	if msg != "" {
 		err = writeMessage(int(procExt.Pid), msg)
-		if errors.As(err, &errProcDied) {
-			procExt.State = Died
-			return
-		} else if err == nil {
-			if running, err := procExt.IsRunning(); !running && err == nil {
+		running, _ := procExt.IsRunning()
+		if err == nil {
+			if !running {
 				procExt.State = Stopped
 				return
 			}
+		} else if !running {
+			procExt.State = Died
+			return
 		}
 	}
 	// Try to close the window.
@@ -118,6 +136,7 @@ func sendCtrlBreak(pid int) error {
 //
 // Return value (error) is nil only if proxy process successfully sent the signal, but not necessarily means that the
 // signal has been successfully received or processed.
+// Among others, can return ErrProcDied and ErrBadExitCode errors defined in this package.
 //
 // Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
 func sendSig(pid int, sig int) error {
@@ -176,8 +195,7 @@ func sendSig(pid int, sig int) error {
 		return newErrProcDied(pid)
 	}
 	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
-		fmt.Println(exitCode)
-		return errors.New(fmt.Sprintf("The kamikaze process exited with unexpected exit code %v", exitCode))
+		return newErrBadExitCode(exitCode, "Kamikaze")
 	}
 
 	return nil

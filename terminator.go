@@ -12,8 +12,11 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-// Options respresents options to stop a process.
-type Options struct { // TODO: Pid to Message map?
+// TODO: Pid to Message map
+// TODO: Filter function for root and child processes
+// TODO: Methods for stopping
+// StopOrKillOptions respresents options to stop or kill a process.
+type StopOrKillOptions struct {
 	// Do not return error if process is not running (nothing to stop)?
 	IgnoreAbsent bool
 
@@ -107,7 +110,7 @@ func newStopResult() StopResult {
 	}
 }
 
-// StopThenKill tries to gracefully terminate a process with PID `pid` using options `opts` with fallback to killing.
+// StopOrKill tries to gracefully terminate a process with PID `pid` using options `opts` with fallback to killing.
 //
 // Returns an error if process does not exist (if IgnoreAbsent option is set to false), if an internal error is happened
 // or if failed to kill the root process or any child (if Tree option is set to true).
@@ -129,7 +132,7 @@ func newStopResult() StopResult {
 // A SIGTERM signal.
 //
 // A SIGKILL signal as a fallback.
-func StopThenKill(pid int, opts Options) (StopResult, error) {
+func StopOrKill(pid int, opts StopOrKillOptions) (StopResult, error) {
 	rootProc, err := process.NewProcess(int32(pid))
 	stopResult := newStopResult()
 
@@ -202,6 +205,8 @@ func StopThenKill(pid int, opts Options) (StopResult, error) {
 
 	return stopResult, endErr
 }
+
+// TODO: Add Stop() function which returns error
 
 // Kill terminates the process with PID `pid`.
 //

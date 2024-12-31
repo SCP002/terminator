@@ -9,20 +9,20 @@ import (
 )
 
 func main() {
-	fmt.Print("The PID to terminate: ")
+	fmt.Print("PID to terminate: ")
 	var pid int
 	_, _ = fmt.Scanln(&pid)
 
-	opts := terminator.Options{
+	opts := terminator.StopOrKillOptions{
 		IgnoreAbsent: false,
 		Tree:         true,
 		Timeout:      5 * time.Second,
 		Tick:         100 * time.Millisecond,
 		Message:      "",
 	}
-	sr, err := terminator.StopThenKill(pid, opts)
+	sr, err := terminator.StopOrKill(pid, opts)
 	if err != nil {
-		fmt.Printf("Stop failed with: %v\n", err)
+		fmt.Printf("StopOrKill failed with: %v\n", err)
 	}
 	prettySr, _ := json.MarshalIndent(sr, "", "  ")
 	fmt.Println(string(prettySr))
