@@ -9,7 +9,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 
-	"github.com/SCP002/terminator/internal/proxy/codes"
+	"github.com/SCP002/terminator/internal/proxy/exitcodes"
 )
 
 // Windows types.
@@ -43,10 +43,10 @@ const (
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
-		os.Exit(codes.WrongPid)
+		os.Exit(exitcodes.WrongPid)
 	}
 	if msg == "" {
-		os.Exit(codes.NoMessage)
+		os.Exit(exitcodes.NoMessage)
 	}
 
 	kernel32 := windows.NewLazyDLL("kernel32.dll")
@@ -56,15 +56,15 @@ func Send(pid int, msg string) {
 	r1, _, err := attachConsole.Call(uintptr(pid))
 	if r1 == 0 {
 		if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
-			os.Exit(codes.CallerAlreadyAttached)
+			os.Exit(exitcodes.CallerAlreadyAttached)
 		}
 		if errors.Is(err, windows.ERROR_INVALID_HANDLE) {
-			os.Exit(codes.TargetHaveNoConsole)
+			os.Exit(exitcodes.TargetHaveNoConsole)
 		}
 		if errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
-			os.Exit(codes.ProcessDoesNotExist)
+			os.Exit(exitcodes.ProcessDoesNotExist)
 		}
-		os.Exit(codes.AttachFailed)
+		os.Exit(exitcodes.AttachFailed)
 	}
 
 	// Regain standard IO handles after AttachConsole.
@@ -73,7 +73,7 @@ func Send(pid int, msg string) {
 	// Write the message to the current console's input.
 	inpRecList, err := strToInputRecords(msg)
 	if err != nil {
-		os.Exit(codes.ConvertMsgFailed)
+		os.Exit(exitcodes.ConvertMsgFailed)
 	}
 	writeConsoleInputW := kernel32.NewProc("WriteConsoleInputW")
 	var written uint32 = 0
@@ -87,7 +87,7 @@ func Send(pid int, msg string) {
 		uintptr(unsafe.Pointer(&written)),
 	)
 	if r1 == 0 {
-		os.Exit(codes.WriteMsgFailed)
+		os.Exit(exitcodes.WriteMsgFailed)
 	}
 }
 
@@ -125,43 +125,43 @@ func initConsoleHandles() {
 	// Retrieve standard handles.
 	hIn, err := windows.GetStdHandle(windows.STD_INPUT_HANDLE)
 	if err != nil {
-		os.Exit(codes.GetStdInHandleFailed)
+		os.Exit(exitcodes.GetStdInHandleFailed)
 	}
 	hOut, err := windows.GetStdHandle(windows.STD_OUTPUT_HANDLE)
 	if err != nil {
-		os.Exit(codes.GetStdOutHandleFailed)
+		os.Exit(exitcodes.GetStdOutHandleFailed)
 	}
 	hErr, err := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
 	if err != nil {
-		os.Exit(codes.GetStdErrHandleFailed)
+		os.Exit(exitcodes.GetStdErrHandleFailed)
 	}
 
 	// Wrap handles in files. /dev/ prefix just to make it conventional.
 	stdInF := os.NewFile(uintptr(hIn), "/dev/stdin")
 	if stdInF == nil {
-		os.Exit(codes.MakeStdInFileFailed)
+		os.Exit(exitcodes.MakeStdInFileFailed)
 	}
 	stdOutF := os.NewFile(uintptr(hOut), "/dev/stdout")
 	if stdOutF == nil {
-		os.Exit(codes.MakeStdOutFileFailed)
+		os.Exit(exitcodes.MakeStdOutFileFailed)
 	}
 	stdErrF := os.NewFile(uintptr(hErr), "/dev/stderr")
 	if stdErrF == nil {
-		os.Exit(codes.MakeStdErrFileFailed)
+		os.Exit(exitcodes.MakeStdErrFileFailed)
 	}
 
 	// Set handles for standard input, output and error devices.
 	err = windows.SetStdHandle(windows.STD_INPUT_HANDLE, windows.Handle(stdInF.Fd()))
 	if err != nil {
-		os.Exit(codes.SetStdInHandleFailed)
+		os.Exit(exitcodes.SetStdInHandleFailed)
 	}
 	err = windows.SetStdHandle(windows.STD_OUTPUT_HANDLE, windows.Handle(stdOutF.Fd()))
 	if err != nil {
-		os.Exit(codes.SetStdOutHandleFailed)
+		os.Exit(exitcodes.SetStdOutHandleFailed)
 	}
 	err = windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(stdErrF.Fd()))
 	if err != nil {
-		os.Exit(codes.SetStdErrHandleFailed)
+		os.Exit(exitcodes.SetStdErrHandleFailed)
 	}
 
 	// Update golang standard IO file descriptors.

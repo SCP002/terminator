@@ -6,7 +6,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/SCP002/terminator/internal/proxy/codes"
+	"github.com/SCP002/terminator/internal/proxy/exitcodes"
 	"github.com/SCP002/terminator/internal/proxy/message"
 	"github.com/SCP002/terminator/internal/proxy/signal"
 )
@@ -39,6 +39,6 @@ func main() {
 	case "message":
 		message.Send(pid, msg)
 	default:
-		os.Exit(codes.WrongMode)
+		os.Exit(exitcodes.WrongMode)
 	}
 }

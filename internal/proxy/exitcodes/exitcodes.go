@@ -1,4 +1,4 @@
-package codes
+package exitcodes
 
 // Exit codes for proxy. Not using iota for clarity.
 

@@ -15,33 +15,44 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/sys/windows"
 
-	pErrors "github.com/SCP002/terminator/internal/errors"
 	proxyBin "github.com/SCP002/terminator/internal/proxy/bin"
-	"github.com/SCP002/terminator/internal/proxy/codes"
+	"github.com/SCP002/terminator/internal/proxy/exitcodes"
 	proxyVer "github.com/SCP002/terminator/internal/proxy/version"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
-// Dll files.
-
 var (
 	kernel32 = windows.NewLazyDLL("kernel32.dll")
 )
+
+// ErrProcDied indicates the process is already dead.
+type ErrProcDied struct {
+	PID int
+}
+
+// Error is used to implement error interface.
+func (e ErrProcDied) Error() string {
+	return fmt.Sprintf("The process with PID %v is already dead", e.PID)
+}
+
+// newErrProcDied returns new ErrProcDied.
+func newErrProcDied(pid int) ErrProcDied {
+	return ErrProcDied{PID: pid}
+}
 
 // stop tries to gracefully terminate the process and write a message `msg` to stdin if it's not empty.
 func (procExt *ProcessExt) stop(msg string) {
 	// Error checks after each attempt are done to improve performance as most of the operations are expensive, while
 	// processes are often stop immediately.
 
-	var procDiedError pErrors.ProcDiedError
+	var errProcDied ErrProcDied
 
 	// Try Ctrl + C.
 	err := sendCtrlC(int(procExt.Pid))
-	if errors.As(err, &procDiedError) {
+	if errors.As(err, &errProcDied) {
 		procExt.State = Died
 		return
-	}
-	if err == nil {
+	} else if err == nil {
 		if running, err := procExt.IsRunning(); !running && err == nil {
 			procExt.State = Stopped
 			return
@@ -49,11 +60,10 @@ func (procExt *ProcessExt) stop(msg string) {
 	}
 	// Try Ctrl + Break.
 	err = sendCtrlBreak(int(procExt.Pid))
-	if errors.As(err, &procDiedError) {
+	if errors.As(err, &errProcDied) {
 		procExt.State = Died
 		return
-	}
-	if err == nil {
+	} else if err == nil {
 		if running, err := procExt.IsRunning(); !running && err == nil {
 			procExt.State = Stopped
 			return
@@ -62,11 +72,10 @@ func (procExt *ProcessExt) stop(msg string) {
 	// Try to write a message.
 	if msg != "" {
 		err = writeMessage(int(procExt.Pid), msg)
-		if errors.As(err, &procDiedError) {
+		if errors.As(err, &errProcDied) {
 			procExt.State = Died
 			return
-		}
-		if err == nil {
+		} else if err == nil {
 			if running, err := procExt.IsRunning(); !running && err == nil {
 				procExt.State = Stopped
 				return
@@ -163,10 +172,11 @@ func sendSig(pid int, sig int) error {
 
 	// Return error if the kamikaze process exited with ProcessDoesNotExist or not with STATUS_CONTROL_C_EXIT.
 	exitCode := kamikaze.ProcessState.ExitCode()
-	if exitCode == codes.ProcessDoesNotExist {
-		return pErrors.NewProcDiedError(pid)
+	if exitCode == exitcodes.ProcessDoesNotExist {
+		return newErrProcDied(pid)
 	}
 	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
+		fmt.Println(exitCode)
 		return errors.New(fmt.Sprintf("The kamikaze process exited with unexpected exit code %v", exitCode))
 	}
 
@@ -188,8 +198,8 @@ func writeMessage(pid int, msg string) error {
 	attr.NoInheritHandles = true
 	msgSender.SysProcAttr = &attr
 	err = msgSender.Run()
-	if msgSender.ProcessState.ExitCode() == codes.ProcessDoesNotExist {
-		return pErrors.NewProcDiedError(pid)
+	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
+		return newErrProcDied(pid)
 	}
 	return errors.Wrap(err, "Failed to start message sender process")
 }

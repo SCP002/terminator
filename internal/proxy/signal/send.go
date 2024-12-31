@@ -8,7 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 
-	"github.com/SCP002/terminator/internal/proxy/codes"
+	"github.com/SCP002/terminator/internal/proxy/exitcodes"
 	"github.com/SCP002/terminator/internal/wincodes"
 )
 
@@ -22,10 +22,10 @@ const (
 func Send(pid int, sig int) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
-		os.Exit(codes.WrongPid)
+		os.Exit(exitcodes.WrongPid)
 	}
 	if sig != windows.CTRL_C_EVENT && sig != windows.CTRL_BREAK_EVENT {
-		os.Exit(codes.WrongSig)
+		os.Exit(exitcodes.WrongSig)
 	}
 
 	kernel32 := windows.NewLazyDLL("kernel32.dll")
@@ -35,15 +35,15 @@ func Send(pid int, sig int) {
 	r1, _, err := attachConsole.Call(uintptr(pid))
 	if r1 == 0 {
 		if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
-			os.Exit(codes.CallerAlreadyAttached)
+			os.Exit(exitcodes.CallerAlreadyAttached)
 		}
 		if errors.Is(err, windows.ERROR_INVALID_HANDLE) {
-			os.Exit(codes.TargetHaveNoConsole)
+			os.Exit(exitcodes.TargetHaveNoConsole)
 		}
 		if errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
-			os.Exit(codes.ProcessDoesNotExist)
+			os.Exit(exitcodes.ProcessDoesNotExist)
 		}
-		os.Exit(codes.AttachFailed)
+		os.Exit(exitcodes.AttachFailed)
 	}
 
 	if sig == windows.CTRL_C_EVENT {
@@ -51,7 +51,7 @@ func Send(pid int, sig int) {
 		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
 		r1, _, _ = setConsoleCtrlHandler.Call(NULL, FALSE)
 		if r1 == 0 {
-			os.Exit(codes.EnableCtrlCFailed)
+			os.Exit(exitcodes.EnableCtrlCFailed)
 		}
 	}
 
@@ -61,7 +61,7 @@ func Send(pid int, sig int) {
 	// signal to a consoles separate from the current one.
 	r1, _, _ = generateConsoleCtrlEvent.Call(uintptr(sig), uintptr(0))
 	if r1 == 0 {
-		os.Exit(codes.SendSigFailed)
+		os.Exit(exitcodes.SendSigFailed)
 	}
 
 	// If this program runs properly, it should never reach this point, rather exit with STATUS_CONTROL_C_EXIT exit code
