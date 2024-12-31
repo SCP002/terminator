@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
 	"github.com/shirou/gopsutil/v4/process"
 )
 
@@ -128,7 +129,6 @@ func newStopResult(rootPid int32) StopResult {
 // A SIGKILL signal as a fallback.
 func Stop(pid int, opts Options) (StopResult, error) {
 	rootProc, err := process.NewProcess(int32(pid))
-	rootProcExt := newProcessExt(rootProc)
 	stopResult := newStopResult(rootProc.Pid)
 
 	// Return if the process is not running.
@@ -149,17 +149,19 @@ func Stop(pid int, opts Options) (StopResult, error) {
 		}
 	}
 
-	childProcExtList := []ProcessExt{}
+	// Build ProcessExt list.
+	childProcExtList := lo.Map(tree, func(proc *process.Process, _ int) *ProcessExt {
+		p := newProcessExt(proc)
+		return &p
+	})
 
 	// Try to stop child processes gracefully.
-	for _, child := range tree {
-		childProcExt := newProcessExt(child)
-		childProcExtList = append(childProcExtList, childProcExt)
-		childProcExt.stop("") // TODO: Message from pid map?
-		stopResult.Children[childProcExt.Pid] = childProcExt.State
+	for _, childProcExt := range childProcExtList {
+		childProcExt.stop("")
 	}
 
 	// Try to stop the root process gracefully.
+	rootProcExt := newProcessExt(rootProc)
 	rootProcExt.stop(opts.Message)
 
 	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
@@ -190,6 +192,12 @@ func Stop(pid int, opts Options) (StopResult, error) {
 			endErr = err
 		}
 	}
+
+	// Build StopResult.
+	stopResult.Root[rootProcExt.Pid] = rootProcExt.State
+	stopResult.Children = lo.SliceToMap(childProcExtList, func(child *ProcessExt) (int32, State) {
+		return child.Pid, child.State
+	})
 
 	return stopResult, endErr
 }
