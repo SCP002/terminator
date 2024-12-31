@@ -35,7 +35,8 @@ func (procExt *ProcessExt) stop(msg string) {
 
 	// Try Ctrl + C.
 	err := sendCtrlC(int(procExt.Pid))
-	if _, died := err.(pErrors.ProcDiedError); died {
+	var procDiedError pErrors.ProcDiedError
+	if errors.As(err, &procDiedError) {
 		procExt.State = Died
 		return
 	}
