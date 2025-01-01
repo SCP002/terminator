@@ -1,7 +1,8 @@
+//go:build windows
+
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,19 +25,10 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	opts := terminator.StopOrKillOptions{
-		IgnoreAbsent: false,
-		Tree:         true,
-		Timeout:      5 * time.Second,
-		Tick:         100 * time.Millisecond,
-		Message:      "",
-	}
-	sr, err := terminator.StopOrKill(cmd.Process.Pid, opts)
+	err = terminator.SendCtrlC(cmd.Process.Pid)
 	if err != nil {
-		fmt.Printf("StopOrKill failed with: %v\n", err)
+		fmt.Printf("SendCtrlC failed with: %v\n", err)
 	}
-	prettySr, _ := json.MarshalIndent(sr, "", "  ")
-	fmt.Println(string(prettySr))
 
 	fmt.Println("Continuing execution of caller")
 	time.Sleep(2 * time.Second)

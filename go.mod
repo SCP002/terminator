@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/errors v1.11.3
 	github.com/gonutz/w32/v2 v2.11.1
 	github.com/samber/lo v1.47.0
-	github.com/shirou/gopsutil/v4 v4.24.11
+	github.com/shirou/gopsutil/v4 v4.24.12
 	golang.org/x/sys v0.28.0
 )
 

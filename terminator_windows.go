@@ -56,69 +56,16 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
 
-// TODO: Should return error
-// stop tries to gracefully terminate the process and write a message `msg` to stdin if it's not empty.
-func (procExt *ProcessExt) stop(msg string) {
-	// Error checks after each attempt are done to improve performance as most of the operations are expensive, while
-	// processes are often stop immediately.
-
-	// Try Ctrl + C.
-	err := sendCtrlC(int(procExt.Pid))
-	running, _ := procExt.IsRunning()
-	if err == nil {
-		if !running {
-			procExt.State = Stopped
-			return
-		}
-	} else if !running {
-		procExt.State = Died
-		return
-	}
-	// Try Ctrl + Break.
-	err = sendCtrlBreak(int(procExt.Pid))
-	running, _ = procExt.IsRunning()
-	if err == nil {
-		if !running {
-			procExt.State = Stopped
-			return
-		}
-	} else if !running {
-		procExt.State = Died
-		return
-	}
-	// Try to write a message.
-	if msg != "" {
-		err = writeMessage(int(procExt.Pid), msg)
-		running, _ := procExt.IsRunning()
-		if err == nil {
-			if !running {
-				procExt.State = Stopped
-				return
-			}
-		} else if !running {
-			procExt.State = Died
-			return
-		}
-	}
-	// Try to close the window.
-	if err := closeWindow(int(procExt.Pid), false, false); err == nil {
-		if running, err := procExt.IsRunning(); !running && err == nil {
-			procExt.State = Stopped
-			return
-		}
-	}
-}
-
-// sendCtrlC sends a CTRL_C_EVENT to the process with PID `pid`.
+// SendCtrlC sends a CTRL_C_EVENT to the process with PID `pid`.
 //
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // false, CTRL_C_EVENT will have no effect.
-func sendCtrlC(pid int) error {
+func SendCtrlC(pid int) error {
 	return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
 }
 
-// sendCtrlBreak sends a CTRL_BREAK_EVENT to the process with PID `pid`.
-func sendCtrlBreak(pid int) error {
+// SendCtrlBreak sends a CTRL_BREAK_EVENT to the process with PID `pid`.
+func SendCtrlBreak(pid int) error {
 	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
 	// SetConsoleCtrlHandler can't prevent it.
 	attached, err := isAttachedToCaller(pid)
@@ -130,6 +77,57 @@ func sendCtrlBreak(pid int) error {
 		return errors.New(fmt.Sprintf(msg, pid))
 	}
 	return errors.Wrap(sendSig(pid, windows.CTRL_BREAK_EVENT), "Failed to send CTRL_BREAK_EVENT")
+}
+
+// WriteMessage writes a `msg` message to the console process with PID `pid`.
+//
+// It must end with "\r\n" to be sent.
+func WriteMessage(pid int, msg string) error {
+	proxyPath, err := getProxyPath()
+	if err != nil {
+		return err
+	}
+	// Start a message sender process to attach to the console of the target process and write a message to it's input
+	// using the -msg flag.
+	// Such proxy process is required for the same reason as for sendSig function.
+	msgSender := exec.Command(proxyPath, "-mode", "message", "-pid", fmt.Sprint(pid), "-msg", msg)
+	attr := syscall.SysProcAttr{}
+	attr.CreationFlags |= windows.DETACHED_PROCESS
+	attr.NoInheritHandles = true
+	msgSender.SysProcAttr = &attr
+	err = msgSender.Run()
+	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
+		return newErrProcDied(pid)
+	}
+	return errors.Wrap(err, "Failed to start message sender process")
+}
+
+// CloseWindow sends WM_CLOSE message to the main window of the process with `pid` or WM_QUIT message to UWP application
+// process.
+//
+// If `allowOwnConsole` is set to true, allow to close own console window of the process.
+//
+// If `wait` is set to true, wait for the window procedure to process the message. It will stop execution until user,
+// for example, answer a confirmation dialogue box.
+//
+// Return value (error) is nil only if application successfully processes this message, but not necessarily means that
+// the window was actually closed.
+func CloseWindow(pid int, allowOwnConsole bool, wait bool) error {
+	wnd, isUWP, err := getWindow(pid, allowOwnConsole)
+	if err != nil {
+		return errors.Wrap(err, "Send close message to window")
+	}
+	var ok bool
+	message := lo.Ternary(isUWP, w32.WM_QUIT, w32.WM_CLOSE)
+	if wait {
+		ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
+	} else {
+		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
+	}
+	if !ok {
+		return errors.New(fmt.Sprintf("Failed to send close message to window with PID %v", pid))
+	}
+	return nil
 }
 
 // sendSig sends a control signal `sig` to the console process with PID `pid`.
@@ -201,27 +199,6 @@ func sendSig(pid int, sig int) error {
 	return nil
 }
 
-// writeMessage writes an `msg` message to the console process with `pid`.
-func writeMessage(pid int, msg string) error {
-	proxyPath, err := getProxyPath()
-	if err != nil {
-		return err
-	}
-	// Start a message sender process to attach to the console of the target process and write a message to it's input
-	// using the -msg flag.
-	// Such proxy process is required for the same reason as for sendSig function.
-	msgSender := exec.Command(proxyPath, "-mode", "message", "-pid", fmt.Sprint(pid), "-msg", msg)
-	attr := syscall.SysProcAttr{}
-	attr.CreationFlags |= windows.DETACHED_PROCESS
-	attr.NoInheritHandles = true
-	msgSender.SysProcAttr = &attr
-	err = msgSender.Run()
-	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
-		return newErrProcDied(pid)
-	}
-	return errors.Wrap(err, "Failed to start message sender process")
-}
-
 // getProxyPath returns proxy executable path.
 //
 // It writes a binary to a temporary files folder if not exist already or if present version is different.
@@ -243,34 +220,6 @@ func getProxyPath() (string, error) {
 	}
 
 	return path, nil
-}
-
-// closeWindow sends WM_CLOSE message to the main window of the process with `pid` or WM_QUIT message to UWP application
-// process.
-//
-// If `allowOwnConsole` is set to true, allow to close own console window of the process.
-//
-// If `wait` is set to true, wait for the window procedure to process the message. It will stop execution until user,
-// for example, answer a confirmation dialogue box.
-//
-// Return value (error) is nil only if application successfully processes this message, but not necessarily means that
-// the window was actually closed.
-func closeWindow(pid int, allowOwnConsole bool, wait bool) error {
-	wnd, isUWP, err := getWindow(pid, allowOwnConsole)
-	if err != nil {
-		return errors.Wrap(err, "Send close message to window")
-	}
-	var ok bool
-	message := lo.Ternary(isUWP, w32.WM_QUIT, w32.WM_CLOSE)
-	if wait {
-		ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
-	} else {
-		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
-	}
-	if !ok {
-		return errors.New(fmt.Sprintf("Failed to send close message to window with PID %v", pid))
-	}
-	return nil
 }
 
 // getWindow returns main window handle of the process with `pid` and true if window belongs to UWP application.

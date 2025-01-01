@@ -10,7 +10,7 @@ Rem Clear unused dependencies
 go mod tidy
 
 Rem Build internal dependencies
-PushD "..\..\scripts"
+PushD "..\..\..\scripts"
 Call "build_dependencies.cmd"
 PopD
 

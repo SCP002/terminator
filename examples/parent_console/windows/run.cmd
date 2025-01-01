@@ -10,11 +10,11 @@ Rem Clear unused dependencies
 go mod tidy
 
 Rem Build internal dependencies
-PushD "..\..\scripts"
+PushD "..\..\..\scripts"
 Call "build_dependencies.cmd"
 PopD
 
 Rem Run
-go run "terminator_external_pid.go"
+go run "terminator_parent_console.go"
 
 Exit /B 0
