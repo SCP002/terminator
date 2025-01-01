@@ -17,11 +17,11 @@ PopD
 Rem Build x32
 Set GOOS=windows
 Set GOARCH=386
-go build -o "terminator_external_pid_x32.exe" "terminator_external_pid.go"
+go build -o "terminator_external_pid_ctrlc_x32.exe" "terminator_external_pid_ctrlc.go"
 
 Rem Build x64
 Set GOOS=windows
 Set GOARCH=amd64
-go build -o "terminator_external_pid_x64.exe" "terminator_external_pid.go"
+go build -o "terminator_external_pid_ctrlc_x64.exe" "terminator_external_pid_ctrlc.go"
 
 Exit /B 0
