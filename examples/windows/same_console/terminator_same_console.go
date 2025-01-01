@@ -30,8 +30,8 @@ func main() {
 		fmt.Printf("SendCtrlC failed with: %v\n", err)
 	}
 
-	fmt.Println("Continuing execution of caller")
 	time.Sleep(2 * time.Second)
+	fmt.Println("\nContinuing execution of caller")
 
 	fmt.Print("Press <Enter> to exit...")
 	_, _ = fmt.Scanln()

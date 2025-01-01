@@ -15,6 +15,6 @@ Call "build_dependencies.cmd"
 PopD
 
 Rem Run
-go run "terminator_parent_console.go"
+go run "terminator_same_console.go"
 
 Exit /B 0
