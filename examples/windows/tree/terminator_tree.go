@@ -48,19 +48,21 @@ func main() {
 	for _, child := range children {
 		// Filter descendants
 		if name, _ := child.Name(); name == "cmd.exe" {
-			if err = terminator.SendCtrlC(int(child.Pid)); err != nil {
-				fmt.Printf("SendCtrlC for PID %v failed with: %v\n", child.Pid, err)
+			if err := terminator.SendCtrlC(int(child.Pid)); err != nil {
+				fmt.Printf("SendCtrlC for child with PID %v failed with: %v\n", child.Pid, err)
 			}
-			if err = terminator.SendMessage(int(child.Pid), "Y\r\n"); err != nil {
-				fmt.Printf("WriteMessage for PID %v failed with: %v\n", child.Pid, err)
+			if err := terminator.SendMessage(int(child.Pid), "Y\r\n"); err != nil {
+				fmt.Printf("WriteMessage for child with PID %v failed with: %v\n", child.Pid, err)
 			}
 		}
 	}
 
 	// Stop root
-	err = terminator.SendCtrlC(cmd.Process.Pid)
-	if err != nil {
-		fmt.Printf("SendCtrlC for PID %v failed with: %v\n", cmd.Process.Pid, err)
+	if err := terminator.SendCtrlC(cmd.Process.Pid); err != nil {
+		fmt.Printf("SendCtrlC for main process with PID %v failed with: %v\n", cmd.Process.Pid, err)
+	}
+	if err := terminator.SendMessage(cmd.Process.Pid, "Y\r\n"); err != nil {
+		fmt.Printf("WriteMessage for main process with PID %v failed with: %v\n", cmd.Process.Pid, err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
