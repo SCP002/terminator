@@ -23,7 +23,7 @@ func KillWithContext(ctx context.Context, pid int) error {
 	return errors.Wrap(proc.KillWithContext(ctx), fmt.Sprintf("Kill process with PID %v", pid))
 }
 
-// WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceeded
+// WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceeded.
 func WaitForProcStop(ctx context.Context, pid int) {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
@@ -47,7 +47,7 @@ func WaitForProcStop(ctx context.Context, pid int) {
 //
 // The first element is deepest descendant. The last one is a progenitor or closest child.
 //
-// If the `withRoot` argument is set to true, add the root process to the end.
+// If the `withRoot` argument is set to true, add root process to the end.
 func FlatTree(pid int, withRoot bool) ([]*process.Process, error) {
 	tree := []*process.Process{}
 	proc, err := process.NewProcess(int32(pid))

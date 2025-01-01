@@ -79,10 +79,10 @@ func SendCtrlBreak(pid int) error {
 	return errors.Wrap(sendSig(pid, windows.CTRL_BREAK_EVENT), "Failed to send CTRL_BREAK_EVENT")
 }
 
-// WriteMessage writes a `msg` message to the console process with PID `pid`.
+// SendMessage writes a `msg` message to the console process with PID `pid`.
 //
 // It must end with "\r\n" to be sent.
-func WriteMessage(pid int, msg string) error {
+func SendMessage(pid int, msg string) error {
 	proxyPath, err := getProxyPath()
 	if err != nil {
 		return err

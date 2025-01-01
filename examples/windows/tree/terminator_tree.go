@@ -40,9 +40,27 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
+	// Stop children
+	children, err := terminator.FlatTree(cmd.Process.Pid, false)
+	if err != nil {
+		fmt.Printf("Get process tree failed with: %v\n", err)
+	}
+	for _, child := range children {
+		// Filter descendants
+		if name, _ := child.Name(); name == "cmd.exe" {
+			if err = terminator.SendCtrlC(int(child.Pid)); err != nil {
+				fmt.Printf("SendCtrlC for PID %v failed with: %v\n", child.Pid, err)
+			}
+			if err = terminator.SendMessage(int(child.Pid), "Y\r\n"); err != nil {
+				fmt.Printf("WriteMessage for PID %v failed with: %v\n", child.Pid, err)
+			}
+		}
+	}
+
+	// Stop root
 	err = terminator.SendCtrlC(cmd.Process.Pid)
 	if err != nil {
-		fmt.Printf("SendCtrlC failed with: %v\n", err)
+		fmt.Printf("SendCtrlC for PID %v failed with: %v\n", cmd.Process.Pid, err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)

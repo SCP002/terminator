@@ -38,12 +38,12 @@ func SendSigInt(pid int) error {
 	return nil
 }
 
-// WriteMessage writes a `msg` message to console process with PID `pid`.
+// SendMessage writes a `msg` message to console process with PID `pid`.
 //
 // It must end with "\n" to be sent.
 //
 // Requires root privilegies (e.g. run as sudo).
-func WriteMessage(pid int, msg string) error {
+func SendMessage(pid int, msg string) error {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of a process with PID %v", pid))

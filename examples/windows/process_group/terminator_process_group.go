@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("SendCtrlBreak failed with: %v\n", err)
 	}
-	err = terminator.WriteMessage(cmd.Process.Pid, "Y\r\n")
+	err = terminator.SendMessage(cmd.Process.Pid, "Y\r\n")
 	if err != nil {
 		fmt.Printf("WriteMessage failed with: %v\n", err)
 	}
