@@ -3,6 +3,7 @@ package terminator
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/shirou/gopsutil/v4/process"
@@ -20,6 +21,26 @@ func KillWithContext(ctx context.Context, pid int) error {
 		return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
 	}
 	return errors.Wrap(proc.KillWithContext(ctx), fmt.Sprintf("Kill process with PID %v", pid))
+}
+
+// WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceeded
+func WaitForProcStop(ctx context.Context, pid int) {
+	proc, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return
+	}
+
+	ticker := time.NewTicker(time.Millisecond * 100)
+	for {
+		select {
+		case <-ticker.C:
+			if running, _ := proc.IsRunning(); !running {
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 // FlatTree returns gopsutil Process instances of all descendants of a process with the specified `pid`.

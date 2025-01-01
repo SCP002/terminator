@@ -15,6 +15,6 @@ Call "build_dependencies.cmd"
 PopD
 
 Rem Run
-go run "terminator_external_pid.go"
+go run "terminator_external_pid_ctrlc.go"
 
 Exit /B 0

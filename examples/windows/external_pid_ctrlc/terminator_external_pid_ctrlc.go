@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,8 +20,10 @@ func main() {
 		fmt.Printf("SendCtrlC failed with: %v\n", err)
 	}
 
-	fmt.Println("Continuing execution of caller")
-	time.Sleep(2 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	terminator.WaitForProcStop(ctx, pid)
+	fmt.Println("\nContinuing execution of caller")
 
 	fmt.Print("Press <Enter> to exit...")
 	_, _ = fmt.Scanln()
