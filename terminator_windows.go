@@ -117,19 +117,19 @@ func SendMessage(pid int, msg string) error {
 // Can be caught as SIGTERM.
 func CloseWindow(wnd w32.HWND, wait bool) error {
 	var ok bool
-	message := lo.Ternary(IsUWPApp(wnd), w32.WM_QUIT, w32.WM_CLOSE)
+	message := lo.Ternary(IsUWPAppWindow(wnd), w32.WM_QUIT, w32.WM_CLOSE)
 	if wait {
 		ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
 	} else {
 		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
 	}
 	if !ok {
-		return errors.New(fmt.Sprintf("Failed to send close message to window with HWND %v", wnd))
+		return errors.New(fmt.Sprintf("Failed to send close message to window with window handle %v", wnd))
 	}
 	return nil
 }
 
-// GetMainWindow returns main window handle of the process with `pid`.
+// GetMainWindow returns main window handle of the process with PID `pid`.
 //
 // If `allowOwnConsole` is set to true, allow to return own console window of the process.
 func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
@@ -153,10 +153,10 @@ func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
 // Inspired by https://stackoverflow.com/a/21767578.
 func GetWindows(pid int) []w32.HWND {
 	var windows []w32.HWND
-	w32.EnumWindows(func(hwnd w32.HWND) bool {
-		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
+	w32.EnumWindows(func(wnd w32.HWND) bool {
+		_, currentPid := w32.GetWindowThreadProcessId(wnd)
 		if int(currentPid) == pid {
-			windows = append(windows, hwnd)
+			windows = append(windows, wnd)
 		}
 		// Continue enumerating.
 		return true
@@ -164,18 +164,18 @@ func GetWindows(pid int) []w32.HWND {
 	return windows
 }
 
-// IsUWPApp returns true if a window with the specified handle `hwnd` is a window of Universal Windows Platform
+// IsUWPAppWindow returns true if a window with the specified handle `wnd` is a window of Universal Windows Platform
 // application.
-func IsUWPApp(hwnd w32.HWND) bool {
-	info, _ := w32.GetWindowInfo(hwnd)
+func IsUWPAppWindow(wnd w32.HWND) bool {
+	info, _ := w32.GetWindowInfo(wnd)
 	return info.AtomWindowType == 49223
 }
 
-// IsMainWindow returns true if a window with the specified handle `hwnd` is a main window.
+// IsMainWindow returns true if a window with the specified handle `wnd` is a main window.
 //
 // Inspired by https://stackoverflow.com/a/21767578.
-func IsMainWindow(hwnd w32.HWND) bool {
-	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
+func IsMainWindow(wnd w32.HWND) bool {
+	return w32.GetWindow(wnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(wnd)
 }
 
 // sendSig sends a control signal `sig` to the console process with PID `pid`.

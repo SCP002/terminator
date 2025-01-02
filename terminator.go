@@ -52,11 +52,11 @@ func FlatChildTree(pid int, withRoot bool) ([]*process.Process, error) {
 	tree := []*process.Process{}
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
-		return tree, errors.Wrap(err, "Get flat process tree")
+		return tree, errors.Wrap(err, "Get flat child process tree")
 	}
 	err = flatChildTree(proc, &tree, withRoot)
 	if err != nil {
-		return tree, errors.Wrap(err, "Get flat process tree")
+		return tree, errors.Wrap(err, "Get flat child process tree")
 	}
 	return tree, nil
 }
@@ -73,7 +73,7 @@ func flatChildTree(proc *process.Process, tree *[]*process.Process, withRoot boo
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Get process tree for PID %v", proc.Pid))
+		return errors.Wrap(err, fmt.Sprintf("Get flat process tree for PID %v", proc.Pid))
 	}
 	// Iterate for each child process in reverse order.
 	for i := len(children) - 1; i >= 0; i-- {
