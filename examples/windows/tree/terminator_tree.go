@@ -42,7 +42,7 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	// Get children
-	children, err := terminator.FlatChildTree(cmd.Process.Pid, false)
+	children, err := terminator.FlatChildTree(cmd.Process.Pid, true)
 	if err != nil {
 		fmt.Printf("Get process tree failed with: %v\n", err)
 	}
@@ -53,17 +53,21 @@ func main() {
 		return name == "cmd.exe"
 	})
 
-	// TODO: Bottom: CtrlC, Y, close window. Middle: Enter, close window. Top: Enter.
-
 	// Close bottom child
 	if err := terminator.SendCtrlC(int(cmds[0].Pid)); err != nil {
 		fmt.Printf("SendCtrlC for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
 	}
-	if err := terminator.SendMessage(int(cmds[0].Pid), "Y\r\n"); err != nil {
+	if err := terminator.SendMessage(int(cmds[0].Pid), "Y\r\nexit\r\nexit\r\n"); err != nil {
 		fmt.Printf("SendMessage for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
 	}
 	// Close middle child
-	// ...
+	if err := terminator.SendMessage(int(cmds[1].Pid), "\r\nexit\r\n"); err != nil {
+		fmt.Printf("SendMessage for child process with PID %v failed with: %v\n", cmds[1].Pid, err)
+	}
+	// Close bottom child
+	if err := terminator.SendMessage(int(cmds[2].Pid), "\r\n"); err != nil {
+		fmt.Printf("SendMessage for child process with PID %v failed with: %v\n", cmds[2].Pid, err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
