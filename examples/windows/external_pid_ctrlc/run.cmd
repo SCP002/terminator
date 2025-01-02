@@ -3,10 +3,7 @@ ChCp 65001 > Nul
 
 Cls
 
-Rem Update dependencies
-go get -u ./...
-
-Rem Clear unused dependencies
+Rem Download dependencies and remove unused ones
 go mod tidy
 
 Rem Build internal dependencies

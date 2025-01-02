@@ -14,7 +14,7 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/ebitengine/purego v0.8.1 // indirect
-	github.com/getsentry/sentry-go v0.30.0 // indirect
+	github.com/getsentry/sentry-go v0.31.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

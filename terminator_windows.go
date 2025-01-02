@@ -56,7 +56,7 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
 
-// SendCtrlC sends a CTRL_C_EVENT to the process with PID `pid`.
+// SendCtrlC sends CTRL_C_EVENT to the process with PID `pid`.
 //
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // false, CTRL_C_EVENT will have no effect.
@@ -66,7 +66,7 @@ func SendCtrlC(pid int) error {
 	return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
 }
 
-// SendCtrlBreak sends a CTRL_BREAK_EVENT to the process with PID `pid`.
+// SendCtrlBreak sends CTRL_BREAK_EVENT to the process with PID `pid`.
 //
 // Can be caught as SIGINT.
 func SendCtrlBreak(pid int) error {
