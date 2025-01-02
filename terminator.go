@@ -43,31 +43,31 @@ func WaitForProcStop(ctx context.Context, pid int) {
 	}
 }
 
-// FlatTree returns gopsutil Process instances of all descendants of a process with the specified `pid`.
+// FlatChildTree returns gopsutil Process instances of all descendants of a process with the specified `pid`.
 //
 // The first element is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the `withRoot` argument is set to true, add root process to the end.
-func FlatTree(pid int, withRoot bool) ([]*process.Process, error) {
+func FlatChildTree(pid int, withRoot bool) ([]*process.Process, error) {
 	tree := []*process.Process{}
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
 		return tree, errors.Wrap(err, "Get flat process tree")
 	}
-	err = flatTree(proc, &tree, withRoot)
+	err = flatChildTree(proc, &tree, withRoot)
 	if err != nil {
 		return tree, errors.Wrap(err, "Get flat process tree")
 	}
 	return tree, nil
 }
 
-// flatTree populates the `tree` argument with gopsutil Process instances of all descendants of the specified process
+// flatChildTree populates the `tree` argument with gopsutil Process instances of all descendants of the specified process
 // `proc`.
 //
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //
 // If the `withRoot` argument is set to true, add the root process to the end.
-func flatTree(proc *process.Process, tree *[]*process.Process, withRoot bool) error {
+func flatChildTree(proc *process.Process, tree *[]*process.Process, withRoot bool) error {
 	children, err := proc.Children()
 	if errors.Is(err, process.ErrorNoChildren) {
 		return nil
@@ -79,7 +79,7 @@ func flatTree(proc *process.Process, tree *[]*process.Process, withRoot bool) er
 	for i := len(children) - 1; i >= 0; i-- {
 		child := children[i]
 		// Call self to collect descendants.
-		err := flatTree(child, tree, false)
+		err := flatChildTree(child, tree, false)
 		if err != nil {
 			return err
 		}

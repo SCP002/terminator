@@ -60,11 +60,15 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 //
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // false, CTRL_C_EVENT will have no effect.
+//
+// Can be caught as SIGINT.
 func SendCtrlC(pid int) error {
 	return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
 }
 
 // SendCtrlBreak sends a CTRL_BREAK_EVENT to the process with PID `pid`.
+//
+// Can be caught as SIGINT.
 func SendCtrlBreak(pid int) error {
 	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
 	// SetConsoleCtrlHandler can't prevent it.
@@ -102,32 +106,78 @@ func SendMessage(pid int, msg string) error {
 	return errors.Wrap(err, "Failed to start message sender process")
 }
 
-// CloseWindow sends WM_CLOSE message to the main window of the process with `pid` or WM_QUIT message to UWP application
-// process.
-//
-// If `allowOwnConsole` is set to true, allow to close own console window of the process.
+// CloseWindow sends WM_CLOSE message the window `wnd` or WM_QUIT message to UWP application process.
 //
 // If `wait` is set to true, wait for the window procedure to process the message. It will stop execution until user,
 // for example, answer a confirmation dialogue box.
 //
 // Return value (error) is nil only if application successfully processes this message, but not necessarily means that
 // the window was actually closed.
-func CloseWindow(pid int, allowOwnConsole bool, wait bool) error {
-	wnd, isUWP, err := getWindow(pid, allowOwnConsole)
-	if err != nil {
-		return errors.Wrap(err, "Send close message to window")
-	}
+//
+// Can be caught as SIGTERM.
+func CloseWindow(wnd w32.HWND, wait bool) error {
 	var ok bool
-	message := lo.Ternary(isUWP, w32.WM_QUIT, w32.WM_CLOSE)
+	message := lo.Ternary(IsUWPApp(wnd), w32.WM_QUIT, w32.WM_CLOSE)
 	if wait {
 		ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
 	} else {
 		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
 	}
 	if !ok {
-		return errors.New(fmt.Sprintf("Failed to send close message to window with PID %v", pid))
+		return errors.New(fmt.Sprintf("Failed to send close message to window with HWND %v", wnd))
 	}
 	return nil
+}
+
+// GetMainWindow returns main window handle of the process with `pid`.
+//
+// If `allowOwnConsole` is set to true, allow to return own console window of the process.
+func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
+	wnd, _ := lo.First(lo.Filter(GetWindows(pid, allowOwnConsole), func(wnd w32.HWND, _ int) bool {
+		return IsMainWindow(wnd)
+	}))
+	if wnd != 0 {
+		return wnd, nil
+	} else {
+		if allowOwnConsole {
+			if attached, _ := isAttachedToCaller(pid); attached {
+				return w32.GetConsoleWindow(), nil
+			}
+		}
+		return wnd, errors.New(fmt.Sprintf("Failed to get main window handle for PID %v", pid))
+	}
+}
+
+// GetWindows returns all window handles of the process with PID `pid`.
+//
+// If `allowOwnConsole` is set to true, allow to add own console window of the process to the list.
+//
+// Inspired by https://stackoverflow.com/a/21767578.
+func GetWindows(pid int, allowOwnConsole bool) []w32.HWND {
+	var windows []w32.HWND
+	w32.EnumWindows(func(hwnd w32.HWND) bool {
+		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
+		if int(currentPid) == pid {
+			windows = append(windows, hwnd)
+		}
+		// Continue enumerating.
+		return true
+	})
+	return windows
+}
+
+// IsUWPApp returns true if a window with the specified handle `hwnd` is a window of Universal Windows Platform
+// application.
+func IsUWPApp(hwnd w32.HWND) bool {
+	info, _ := w32.GetWindowInfo(hwnd)
+	return info.AtomWindowType == 49223
+}
+
+// IsMainWindow returns true if a window with the specified handle `hwnd` is a main window.
+//
+// Inspired by https://stackoverflow.com/a/21767578.
+func IsMainWindow(hwnd w32.HWND) bool {
+	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
 // sendSig sends a control signal `sig` to the console process with PID `pid`.
@@ -220,57 +270,6 @@ func getProxyPath() (string, error) {
 	}
 
 	return path, nil
-}
-
-// getWindow returns main window handle of the process with `pid` and true if window belongs to UWP application.
-//
-// If `allowOwnConsole` is set to true, allow to return own console window of the process.
-//
-// Inspired by https://stackoverflow.com/a/21767578.
-func getWindow(pid int, allowOwnConsole bool) (w32.HWND, bool, error) {
-	var wnd w32.HWND
-	var isUWP bool
-	w32.EnumWindows(func(hwnd w32.HWND) bool {
-		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
-
-		if int(currentPid) == pid {
-			if isUWPApp(hwnd) {
-				isUWP = true
-				wnd = hwnd
-				// Stop enumerating.
-				return false
-			}
-			if isMainWindow(hwnd) {
-				wnd = hwnd
-				// Stop enumerating.
-				return false
-			}
-		}
-		// Continue enumerating.
-		return true
-	})
-	if wnd != 0 {
-		return wnd, isUWP, nil
-	} else {
-		if allowOwnConsole {
-			if attached, _ := isAttachedToCaller(pid); attached {
-				return w32.GetConsoleWindow(), isUWP, nil
-			}
-		}
-		return wnd, isUWP, errors.New(fmt.Sprintf("Failed to get main window handle for PID %v", pid))
-	}
-}
-
-// isUWPApp returns true if a window with the specified handle `hwnd` is a window of Universal Windows Platform
-// application.
-func isUWPApp(hwnd w32.HWND) bool {
-	info, _ := w32.GetWindowInfo(hwnd)
-	return info.AtomWindowType == 49223
-}
-
-// isMainWindow returns true if a window with the specified handle `hwnd` is a main window.
-func isMainWindow(hwnd w32.HWND) bool {
-	return w32.GetWindow(hwnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(hwnd)
 }
 
 // isAttachedToCaller returns true if `pid` is attached to the current console.

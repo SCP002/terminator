@@ -46,7 +46,7 @@ func main() {
 	}
 	err = terminator.SendMessage(cmd.Process.Pid, "Y\r\n")
 	if err != nil {
-		fmt.Printf("WriteMessage failed with: %v\n", err)
+		fmt.Printf("SendMessage failed with: %v\n", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)

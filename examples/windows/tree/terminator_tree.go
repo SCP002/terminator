@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/SCP002/terminator"
+	"github.com/samber/lo"
+	"github.com/shirou/gopsutil/v4/process"
 
 	"golang.org/x/sys/windows"
 )
@@ -40,30 +42,29 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	// Stop children
-	children, err := terminator.FlatTree(cmd.Process.Pid, false)
+	// Get children
+	children, err := terminator.FlatChildTree(cmd.Process.Pid, false)
 	if err != nil {
 		fmt.Printf("Get process tree failed with: %v\n", err)
 	}
-	for _, child := range children {
-		// Filter descendants
-		if name, _ := child.Name(); name == "cmd.exe" {
-			if err := terminator.SendCtrlC(int(child.Pid)); err != nil {
-				fmt.Printf("SendCtrlC for child with PID %v failed with: %v\n", child.Pid, err)
-			}
-			if err := terminator.SendMessage(int(child.Pid), "Y\r\n"); err != nil {
-				fmt.Printf("WriteMessage for child with PID %v failed with: %v\n", child.Pid, err)
-			}
-		}
-	}
 
-	// Stop root
-	if err := terminator.SendCtrlC(cmd.Process.Pid); err != nil {
-		fmt.Printf("SendCtrlC for main process with PID %v failed with: %v\n", cmd.Process.Pid, err)
+	// Get cmd.exe children
+	cmds := lo.Filter(children, func(child *process.Process, _ int) bool {
+		name, _ := child.Name()
+		return name == "cmd.exe"
+	})
+
+	// TODO: Bottom: CtrlC, Y, close window. Middle: Enter, close window. Top: Enter.
+
+	// Close bottom child
+	if err := terminator.SendCtrlC(int(cmds[0].Pid)); err != nil {
+		fmt.Printf("SendCtrlC for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
 	}
-	if err := terminator.SendMessage(cmd.Process.Pid, "Y\r\n"); err != nil {
-		fmt.Printf("WriteMessage for main process with PID %v failed with: %v\n", cmd.Process.Pid, err)
+	if err := terminator.SendMessage(int(cmds[0].Pid), "Y\r\n"); err != nil {
+		fmt.Printf("SendMessage for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
 	}
+	// Close middle child
+	// ...
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
