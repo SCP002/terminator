@@ -15,8 +15,7 @@ func main() {
 	var pid int
 	_, _ = fmt.Scanln(&pid)
 
-	err := terminator.SendCtrlC(pid)
-	if err != nil {
+	if err := terminator.SendCtrlC(pid); err != nil {
 		fmt.Printf("SendCtrlC failed with: %v\n", err)
 	}
 

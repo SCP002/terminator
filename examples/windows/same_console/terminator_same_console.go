@@ -18,16 +18,14 @@ func main() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		fmt.Printf("Start failed with: %v\n", err)
 	}
 
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	err = terminator.SendCtrlC(cmd.Process.Pid)
-	if err != nil {
+	if err := terminator.SendCtrlC(cmd.Process.Pid); err != nil {
 		fmt.Printf("SendCtrlC failed with: %v\n", err)
 	}
 

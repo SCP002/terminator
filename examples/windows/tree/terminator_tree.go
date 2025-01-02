@@ -34,8 +34,7 @@ func main() {
 	attr.NoInheritHandles = true
 	cmd.SysProcAttr = &attr
 
-	err = cmd.Start()
-	if err != nil {
+	if err = cmd.Start(); err != nil {
 		fmt.Printf("Start process failed with: %v\n", err)
 	}
 

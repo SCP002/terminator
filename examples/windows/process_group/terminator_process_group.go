@@ -32,20 +32,17 @@ func main() {
 	attr.NoInheritHandles = true
 	cmd.SysProcAttr = &attr
 
-	err = cmd.Start()
-	if err != nil {
+	if err = cmd.Start(); err != nil {
 		fmt.Printf("Start failed with: %v\n", err)
 	}
 
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	err = terminator.SendCtrlBreak(cmd.Process.Pid)
-	if err != nil {
+	if err := terminator.SendCtrlBreak(cmd.Process.Pid); err != nil {
 		fmt.Printf("SendCtrlBreak failed with: %v\n", err)
 	}
-	err = terminator.SendMessage(cmd.Process.Pid, "Y\r\n")
-	if err != nil {
+	if err := terminator.SendMessage(cmd.Process.Pid, "Y\r\n"); err != nil {
 		fmt.Printf("SendMessage failed with: %v\n", err)
 	}
 
