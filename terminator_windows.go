@@ -106,7 +106,7 @@ func SendMessage(pid int, msg string) error {
 	return errors.Wrap(err, "Failed to start message sender process")
 }
 
-// CloseWindow sends WM_CLOSE message the window `wnd` or WM_QUIT message to UWP application process.
+// CloseWindow sends WM_CLOSE message to the window `wnd` or WM_QUIT message to UWP application window.
 //
 // If `wait` is set to true, wait for the window procedure to process the message. It will stop execution until user,
 // for example, answer a confirmation dialogue box.
@@ -133,7 +133,7 @@ func CloseWindow(wnd w32.HWND, wait bool) error {
 //
 // If `allowOwnConsole` is set to true, allow to return own console window of the process.
 func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
-	wnd, _ := lo.First(lo.Filter(GetWindows(pid, allowOwnConsole), func(wnd w32.HWND, _ int) bool {
+	wnd, _ := lo.First(lo.Filter(GetWindows(pid), func(wnd w32.HWND, _ int) bool {
 		return IsMainWindow(wnd)
 	}))
 	if wnd != 0 {
@@ -150,10 +150,8 @@ func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
 
 // GetWindows returns all window handles of the process with PID `pid`.
 //
-// If `allowOwnConsole` is set to true, allow to add own console window of the process to the list.
-//
 // Inspired by https://stackoverflow.com/a/21767578.
-func GetWindows(pid int, allowOwnConsole bool) []w32.HWND {
+func GetWindows(pid int) []w32.HWND {
 	var windows []w32.HWND
 	w32.EnumWindows(func(hwnd w32.HWND) bool {
 		_, currentPid := w32.GetWindowThreadProcessId(hwnd)
