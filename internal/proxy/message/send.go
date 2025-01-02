@@ -39,7 +39,7 @@ const (
 	keyEvent uint16 = 0x0001
 )
 
-// Send sends an answer `msg` to the input of the target console with `pid`.
+// Send sends an answer `msg` to the input of the target console with PID `pid`.
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {

@@ -43,7 +43,7 @@ func WaitForProcStop(ctx context.Context, pid int) {
 	}
 }
 
-// FlatChildTree returns gopsutil Process instances of all descendants of a process with the specified `pid`.
+// FlatChildTree returns gopsutil Process instances of all descendants of a process with the specified PID `pid`.
 //
 // The first element is deepest descendant. The last one is a progenitor or closest child.
 //
@@ -61,8 +61,8 @@ func FlatChildTree(pid int, withRoot bool) ([]*process.Process, error) {
 	return tree, nil
 }
 
-// flatChildTree populates the `tree` argument with gopsutil Process instances of all descendants of the specified process
-// `proc`.
+// flatChildTree populates the `tree` argument with gopsutil Process instances of all descendants of the specified
+// process `proc`.
 //
 // The first element in the tree is deepest descendant. The last one is a progenitor or closest child.
 //

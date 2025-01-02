@@ -57,7 +57,7 @@ func Send(pid int, sig int) {
 
 	// Send the control signal to the current console process group.
 	generateConsoleCtrlEvent := kernel32.NewProc("GenerateConsoleCtrlEvent")
-	// Parameter is 0 (all processes attached to the current console) but not `pid``, or else it will fail to send the
+	// Parameter is 0 (all processes attached to the current console) but not `pid`, or else it will fail to send the
 	// signal to a consoles separate from the current one.
 	r1, _, _ = generateConsoleCtrlEvent.Call(uintptr(sig), uintptr(0))
 	if r1 == 0 {
