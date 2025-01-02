@@ -35,7 +35,7 @@ func (e ErrProcDied) Error() string {
 	return fmt.Sprintf("The process with PID %v is already dead", e.PID)
 }
 
-// newErrProcDied returns new ErrProcDied.
+// newErrProcDied returns new ErrProcDied with PID `pid`.
 func newErrProcDied(pid int) ErrProcDied {
 	return ErrProcDied{PID: pid}
 }
@@ -51,7 +51,7 @@ func (e ErrBadExitCode) Error() string {
 	return fmt.Sprintf("%v process exited with unexpected exit code %v", e.ProcName, e.Code)
 }
 
-// newErrBadExitCode returns new ErrBadExitCode.
+// newErrBadExitCode returns new ErrBadExitCode with exit code `code` and process name `procName`.
 func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
@@ -85,7 +85,7 @@ func SendCtrlBreak(pid int) error {
 
 // SendMessage writes a `msg` message to the console process with PID `pid`.
 //
-// It must end with "\r\n" to be sent.
+// `msg` must end with "\r\n" to be sent.
 func SendMessage(pid int, msg string) error {
 	proxyPath, err := getProxyPath()
 	if err != nil {

@@ -40,7 +40,7 @@ func SendSigInt(pid int) error {
 
 // SendMessage writes a `msg` message to console process with PID `pid`.
 //
-// It must end with "\n" to be sent.
+// `msg` must end with "\n" to be sent.
 //
 // Requires root privilegies (e.g. run as sudo).
 func SendMessage(pid int, msg string) error {
