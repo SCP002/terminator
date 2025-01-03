@@ -89,7 +89,7 @@ func SendCtrlBreak(pid int) error {
 func SendMessage(pid int, msg string) error {
 	proxyPath, err := getProxyPath()
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("Failed to send message to PID %v", pid))
 	}
 	// Start a message sender process to attach to the console of the target process and write a message to it's input
 	// using the -msg flag.
@@ -103,7 +103,7 @@ func SendMessage(pid int, msg string) error {
 	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
 		return newErrProcDied(pid)
 	}
-	return errors.Wrap(err, "Failed to start message sender process")
+	return errors.Wrap(err, fmt.Sprintf("Failed to send message to PID %v", pid))
 }
 
 // CloseWindow sends WM_CLOSE message to the window `wnd` or WM_QUIT message to UWP application window.
@@ -231,7 +231,7 @@ func sendSig(pid int, sig int) error {
 		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := setConsoleCtrlHandler.Call(NULL, FALSE)
 		if r1 == 0 {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
 		}
 	}
 

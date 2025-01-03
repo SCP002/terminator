@@ -32,7 +32,7 @@ func main() {
 	attr.NoInheritHandles = true
 	cmd.SysProcAttr = &attr
 
-	if err = cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		fmt.Printf("Start failed with: %v\n", err)
 	}
 
