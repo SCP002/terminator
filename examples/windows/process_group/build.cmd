@@ -11,14 +11,19 @@ PushD "..\..\..\scripts"
 Call "build_dependencies.cmd"
 PopD
 
-Rem Build x32
+Rem Build 386
 Set GOOS=windows
 Set GOARCH=386
-go build -o "terminator_process_group_x32.exe" "terminator_process_group.go"
+go build -o "terminator_process_group_386.exe" "terminator_process_group.go"
 
-Rem Build x64
+Rem Build amd64
 Set GOOS=windows
 Set GOARCH=amd64
-go build -o "terminator_process_group_x64.exe" "terminator_process_group.go"
+go build -o "terminator_process_group_amd64.exe" "terminator_process_group.go"
+
+Rem Build arm64
+Set GOOS=windows
+Set GOARCH=arm64
+go build -o "terminator_process_group_arm64.exe" "terminator_process_group.go"
 
 Exit /B 0

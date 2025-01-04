@@ -4,5 +4,5 @@ package bin
 
 import _ "embed"
 
-//go:embed proxy_x32.exe
+//go:embed proxy_386.exe
 var Bytes []byte

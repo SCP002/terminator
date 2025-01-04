@@ -25,15 +25,15 @@ func SendSigTerm(pid int) error {
 	return nil
 }
 
-// SendSigInt sends SIGINT signal to a process with PID `pid`.
-func SendSigInt(pid int) error {
+// SendSignal sends signal `sig` to a process with PID `pid`.
+func SendSignal(pid int, sig syscall.Signal) error {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send SIGINT to a process with PID %v", pid))
+		return errors.Wrap(err, fmt.Sprintf("Send signal %v to a process with PID %v", sig, pid))
 	}
-	err = proc.SendSignal(syscall.SIGINT)
+	err = proc.SendSignal(sig)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send SIGINT to a process with PID %v", pid))
+		return errors.Wrap(err, fmt.Sprintf("Send signal %v to a process with PID %v", sig, pid))
 	}
 	return nil
 }

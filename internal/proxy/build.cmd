@@ -3,14 +3,19 @@ ChCp 65001 > Nul
 
 Cls
 
-Rem Build x32
+Rem Build 386
 Set GOOS=windows
 Set GOARCH=386
-go build -o .\bin\proxy_x32.exe -ldflags "-s -w -H=windowsgui" proxy.go
+go build -o .\bin\proxy_386.exe -ldflags "-s -w -H=windowsgui" proxy.go
 
-Rem Build x64
+Rem Build amd64
 Set GOOS=windows
 Set GOARCH=amd64
-go build -o .\bin\proxy_x64.exe -ldflags "-s -w -H=windowsgui" proxy.go
+go build -o .\bin\proxy_amd64.exe -ldflags "-s -w -H=windowsgui" proxy.go
+
+Rem Build arm64
+Set GOOS=windows
+Set GOARCH=arm64
+go build -o .\bin\proxy_arm64.exe -ldflags "-s -w -H=windowsgui" proxy.go
 
 Exit /B 0

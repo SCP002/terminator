@@ -11,14 +11,14 @@ PushD "..\..\..\scripts"
 Call "build_dependencies.cmd"
 PopD
 
-Rem Build x32
+Rem Build 386
 Set GOOS=windows
 Set GOARCH=386
-go build -o "terminator_tree_x32.exe" "terminator_tree.go"
+go build -o "terminator_tree_386.exe" "terminator_tree.go"
 
-Rem Build x64
+Rem Build amd64
 Set GOOS=windows
 Set GOARCH=amd64
-go build -o "terminator_tree_x64.exe" "terminator_tree.go"
+go build -o "terminator_tree_amd64.exe" "terminator_tree.go"
 
 Exit /B 0
