@@ -8,7 +8,7 @@ go mod tidy
 
 Rem Build internal dependencies
 PushD "..\..\..\scripts"
-Call "build_dependencies.cmd"
+Call "build_windows_dependencies.cmd"
 PopD
 
 Rem Build 386
