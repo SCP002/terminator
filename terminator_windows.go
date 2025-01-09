@@ -3,6 +3,7 @@
 package terminator
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -56,57 +57,93 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
 
-// SendCtrlC sends CTRL_C_EVENT to the process with PID `pid`.
+// SendCtrlC is the same as SendCtrlCWithContext with background context.
+func SendCtrlC(pid int) error {
+	return SendCtrlCWithContext(context.Background(), pid)
+}
+
+// SendCtrlCWithContext sends CTRL_C_EVENT to the process with PID `pid` using context `ctx`.
 //
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // false, CTRL_C_EVENT will have no effect.
 //
 // Can be caught as SIGINT.
-func SendCtrlC(pid int) error {
-	return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
+func SendCtrlCWithContext(ctx context.Context, pid int) error {
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send CTRL_C_EVENT to process with PID %v", pid))
+	default:
+		return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
+	}
 }
 
-// SendCtrlBreak sends CTRL_BREAK_EVENT to the process with PID `pid`.
+// SendCtrlBreak is the same as SendCtrlBreakWithContext with background context.
+func SendCtrlBreak(pid int) error {
+	return SendCtrlBreakWithContext(context.Background(), pid)
+}
+
+// SendCtrlBreakWithContext sends CTRL_BREAK_EVENT to the process with PID `pid` using context `ctx`.
 //
 // Can be caught as SIGINT.
-func SendCtrlBreak(pid int) error {
-	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
-	// SetConsoleCtrlHandler can't prevent it.
-	attached, err := isAttachedToCaller(pid)
-	if err != nil {
-		return errors.Wrap(err, "Failed to send CTRL_BREAK_EVENT")
+func SendCtrlBreakWithContext(ctx context.Context, pid int) error {
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send CTRL_BREAK_EVENT to process with PID %v", pid))
+	default:
+		// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
+		// SetConsoleCtrlHandler can't prevent it.
+		attached, err := isAttachedToCaller(pid)
+		if err != nil {
+			return errors.Wrap(err, "Failed to send CTRL_BREAK_EVENT")
+		}
+		if attached {
+			msg := "Failed to send CTRL_BREAK_EVENT: The process with PID %v is attached to current console"
+			return errors.New(fmt.Sprintf(msg, pid))
+		}
+		return errors.Wrap(sendSig(pid, windows.CTRL_BREAK_EVENT), "Failed to send CTRL_BREAK_EVENT")
 	}
-	if attached {
-		msg := "Failed to send CTRL_BREAK_EVENT: The process with PID %v is attached to current console"
-		return errors.New(fmt.Sprintf(msg, pid))
-	}
-	return errors.Wrap(sendSig(pid, windows.CTRL_BREAK_EVENT), "Failed to send CTRL_BREAK_EVENT")
 }
 
-// SendMessage writes a `msg` message to the console process with PID `pid`.
+// SendMessage is the same as SendMessageWithContext with background context.
+func SendMessage(pid int, msg string) error {
+	return SendMessageWithContext(context.Background(), pid, msg)
+}
+
+// SendMessageWithContext writes a `msg` message to the console process with PID `pid` using context `ctx`.
 //
 // `msg` must end with "\r\n" to be sent.
-func SendMessage(pid int, msg string) error {
-	proxyPath, err := getProxyPath()
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to send message to PID %v", pid))
+func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send message to process with PID %v", pid))
+	default:
+		proxyPath, err := getProxyPath()
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Failed to send message to process with PID %v", pid))
+		}
+		// Start a message sender process to attach to the console of the target process and write a message to it's
+		// input using the -msg flag.
+		// Such proxy process is required for the same reason as for sendSig function.
+		msgSender := exec.Command(proxyPath, "-mode", "message", "-pid", fmt.Sprint(pid), "-msg", msg)
+		attr := syscall.SysProcAttr{}
+		attr.CreationFlags |= windows.DETACHED_PROCESS
+		attr.NoInheritHandles = true
+		msgSender.SysProcAttr = &attr
+		err = msgSender.Run()
+		if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
+			return newErrProcDied(pid)
+		}
+		return errors.Wrap(err, fmt.Sprintf("Failed to send message to process with PID %v", pid))
 	}
-	// Start a message sender process to attach to the console of the target process and write a message to it's input
-	// using the -msg flag.
-	// Such proxy process is required for the same reason as for sendSig function.
-	msgSender := exec.Command(proxyPath, "-mode", "message", "-pid", fmt.Sprint(pid), "-msg", msg)
-	attr := syscall.SysProcAttr{}
-	attr.CreationFlags |= windows.DETACHED_PROCESS
-	attr.NoInheritHandles = true
-	msgSender.SysProcAttr = &attr
-	err = msgSender.Run()
-	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
-		return newErrProcDied(pid)
-	}
-	return errors.Wrap(err, fmt.Sprintf("Failed to send message to PID %v", pid))
 }
 
-// CloseWindow sends WM_CLOSE message to the window `wnd` or WM_QUIT message to UWP application window.
+// CloseWindow is the same as CloseWindowWithContext with background context.
+func CloseWindow(wnd w32.HWND, wait bool) error {
+	return CloseWindowWithContext(context.Background(), wnd, wait)
+}
+
+// CloseWindowWithContext sends WM_CLOSE message to the window `wnd` or WM_QUIT message to UWP application window using
+// context `ctx`.
 //
 // If `wait` is set to true, wait for the window procedure to process the message. It will stop execution until user,
 // for example, answer a confirmation dialogue box.
@@ -115,18 +152,23 @@ func SendMessage(pid int, msg string) error {
 // the window was actually closed.
 //
 // Can be caught as SIGTERM.
-func CloseWindow(wnd w32.HWND, wait bool) error {
-	var ok bool
-	message := lo.Ternary(IsUWPAppWindow(wnd), w32.WM_QUIT, w32.WM_CLOSE)
-	if wait {
-		ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
-	} else {
-		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
+func CloseWindowWithContext(ctx context.Context, wnd w32.HWND, wait bool) error {
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send close message to window with handle %v", wnd))
+	default:
+		var ok bool
+		message := lo.Ternary(IsUWPAppWindow(wnd), w32.WM_QUIT, w32.WM_CLOSE)
+		if wait {
+			ok = w32.SendMessage(wnd, uint32(message), 0, 0) == 0
+		} else {
+			ok = w32.PostMessage(wnd, uint32(message), 0, 0)
+		}
+		if !ok {
+			return errors.New(fmt.Sprintf("Failed to send close message to window with handle %v", wnd))
+		}
+		return nil
 	}
-	if !ok {
-		return errors.New(fmt.Sprintf("Failed to send close message to window with window handle %v", wnd))
-	}
-	return nil
 }
 
 // GetMainWindow returns main window handle of the process with PID `pid`.

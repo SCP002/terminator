@@ -9,21 +9,26 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-// Kill kills process with PID `pid`.
+// Kill is the same as KillWithContext with background context.
 func Kill(pid int) error {
 	return KillWithContext(context.Background(), pid)
 }
 
 // KillWithContext kills process with PID `pid` using context `ctx`.
 func KillWithContext(ctx context.Context, pid int) error {
-	proc, err := process.NewProcess(int32(pid))
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Kill process with PID %v", pid))
+	default:
+		proc, err := process.NewProcess(int32(pid))
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
+		}
+		return errors.Wrap(proc.Kill(), fmt.Sprintf("Kill process with PID %v", pid))
 	}
-	return errors.Wrap(proc.KillWithContext(ctx), fmt.Sprintf("Kill process with PID %v", pid))
 }
 
-// WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceeded.
+// WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceedes.
 func WaitForProcStop(ctx context.Context, pid int) {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
