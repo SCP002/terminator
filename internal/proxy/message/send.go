@@ -40,7 +40,7 @@ const (
 	keyEvent uint16 = 0x0001
 )
 
-// Send sends an answer `msg` to the input of the target console with PID `pid`.
+// Send sends a message `msg` to the input of the target console with PID `pid`.
 func Send(pid int, msg string) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
@@ -152,16 +152,13 @@ func initConsoleHandles() {
 	}
 
 	// Set handles for standard input, output and error devices.
-	err = windows.SetStdHandle(windows.STD_INPUT_HANDLE, windows.Handle(stdInF.Fd()))
-	if err != nil {
+	if err := windows.SetStdHandle(windows.STD_INPUT_HANDLE, windows.Handle(stdInF.Fd())); err != nil {
 		os.Exit(exitcodes.SetStdInHandleFailed)
 	}
-	err = windows.SetStdHandle(windows.STD_OUTPUT_HANDLE, windows.Handle(stdOutF.Fd()))
-	if err != nil {
+	if err := windows.SetStdHandle(windows.STD_OUTPUT_HANDLE, windows.Handle(stdOutF.Fd())); err != nil {
 		os.Exit(exitcodes.SetStdOutHandleFailed)
 	}
-	err = windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(stdErrF.Fd()))
-	if err != nil {
+	if err := windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(stdErrF.Fd())); err != nil {
 		os.Exit(exitcodes.SetStdErrHandleFailed)
 	}
 
