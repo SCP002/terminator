@@ -3,10 +3,11 @@
 package message
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"unsafe"
 
-	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 
 	"github.com/SCP002/terminator/internal/proxy/exitcodes"
@@ -98,7 +99,7 @@ func strToInputRecords(msg string) ([]inputRecord, error) {
 	records := []inputRecord{}
 	utf16chars, err := windows.UTF16FromString(msg)
 	if err != nil {
-		return records, errors.Wrap(err, "Convert string to input records")
+		return records, fmt.Errorf("Convert string to input records: %w", err)
 	}
 	for _, char := range utf16chars {
 		record := inputRecord{

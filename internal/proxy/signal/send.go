@@ -3,9 +3,9 @@
 package signal
 
 import (
+	"errors"
 	"os"
 
-	"github.com/cockroachdb/errors"
 	"golang.org/x/sys/windows"
 
 	"github.com/SCP002/terminator/internal/proxy/exitcodes"
