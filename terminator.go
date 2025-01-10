@@ -20,12 +20,14 @@ func KillWithContext(ctx context.Context, pid int) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Kill process with PID %v", pid))
 	default:
-		proc, err := process.NewProcess(int32(pid))
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
-		}
-		return errors.Wrap(proc.Kill(), fmt.Sprintf("Kill process with PID %v", pid))
+		break
 	}
+
+	proc, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
+	}
+	return errors.Wrap(proc.Kill(), fmt.Sprintf("Kill process with PID %v", pid))
 }
 
 // WaitForProcStop returns when process with PID `pid` is no longer running or `ctx` deadline exceedes.
