@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"syscall"
-	"unsafe"
 
 	"github.com/cockroachdb/errors"
 	"github.com/shirou/gopsutil/v4/process"
+	"golang.org/x/sys/unix"
 )
 
 // SendSigTerm is the same as SendSigTermWithContext with background context.
@@ -87,16 +87,18 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 	}
+	if term == "" {
+		msg := "Write message to stdin of the process with PID %v: Terminal not found"
+		return errors.Wrap(err, fmt.Sprintf(msg, pid))
+	}
 	file, err := os.OpenFile("/dev"+term, os.O_WRONLY, 0644)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 	}
 	defer file.Close()
 	for _, char := range msg {
-		_, _, err := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), syscall.TIOCSTI, uintptr(unsafe.Pointer(&char)))
-		if err != 0 {
-			msg := "Write message to stdin of the process with PID %v, Errno %v"
-			return errors.Wrap(err, fmt.Sprintf(msg, pid, err))
+		if err = unix.IoctlSetPointerInt(int(file.Fd()), unix.TIOCSTI, int(char)); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 		}
 	}
 	return nil
