@@ -22,7 +22,7 @@ On macOS it can:
 
 Not tested on other systems.
 
-As of go gopsutil v4.24.12 on mac OS Ventura, sending message to standard input of
+As of gopsutil v4.24.12 on mac OS Ventura, sending message to standard input of
 terminal application returns "not implemented yet" error on attempt to get terminal from PID.
 
 ## Usage
