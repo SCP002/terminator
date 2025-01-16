@@ -83,7 +83,7 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 	}
-	file, err := os.OpenFile("/dev"+term, os.O_WRONLY, 0644)
+	file, err := os.OpenFile(term, os.O_WRONLY, 0644)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 	}
