@@ -9,7 +9,7 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-// GetTerm returns TTY of the process with PID `pid`.
+// GetTerm returns TTY device of the process with PID `pid`.
 func GetTerm(pid int) (string, error) {
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
@@ -22,5 +22,5 @@ func GetTerm(pid int) (string, error) {
 	if term == "" {
 		return "", errors.New(fmt.Sprintf("Get terminal of process with PID %v: Terminal not found", pid))
 	}
-	return term, nil
+	return "/dev" + term, nil
 }
