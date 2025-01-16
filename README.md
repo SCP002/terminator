@@ -22,8 +22,8 @@ On macOS it can:
 
 Not tested on other systems.
 
-As of go v1.23, golang.org/x/sys v0.28.0 on mac OS Ventura, sending message to standard input of
-terminal application returns "not implemented yet" error.
+As of go gopsutil v4.24.12 on mac OS Ventura, sending message to standard input of
+terminal application returns "not implemented yet" error on attempt to get terminal from PID.
 
 ## Usage
 

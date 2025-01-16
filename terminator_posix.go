@@ -68,7 +68,7 @@ func SendMessage(pid int, msg string) error {
 
 // SendMessageWithContext writes a `msg` message to the console process with PID `pid` using context `ctx`.
 //
-// `msg` must end with "\n" to be sent.
+// `msg` must end with "\n" on Linux and with "\r" on macOS to be sent.
 //
 // Requires root privilegies (e.g. run as sudo).
 func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
@@ -81,11 +81,12 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+		msg := "Write message to stdin of the process with PID %v: Create process object"
+		return errors.Wrap(err, fmt.Sprintf(msg, pid))
 	}
 	term, err := proc.Terminal()
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v: Get terminal", pid))
 	}
 	if term == "" {
 		msg := "Write message to stdin of the process with PID %v: Terminal not found"
