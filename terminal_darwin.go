@@ -27,7 +27,7 @@ func GetTerm(pid int) (string, error) {
 	return term, nil
 }
 
-// getTerminalMap returns mapping between 'sr_rdev' and TTY device.
+// getTerminalMap returns mapping between 'st_rdev' and TTY device.
 func getTerminalMap() (map[int32]string, error) {
 	out := make(map[int32]string)
 
