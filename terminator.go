@@ -20,7 +20,6 @@ func KillWithContext(ctx context.Context, pid int) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Kill process with PID %v", pid))
 	default:
-		break
 	}
 
 	proc, err := process.NewProcess(int32(pid))

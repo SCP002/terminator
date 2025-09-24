@@ -90,7 +90,6 @@ func SendCtrlBreakWithContext(ctx context.Context, pid int) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send CTRL_BREAK_EVENT to process with PID %v", pid))
 	default:
-		break
 	}
 
 	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
@@ -119,7 +118,6 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send message to process with PID %v", pid))
 	default:
-		break
 	}
 
 	proxyPath, err := getProxyPath()
@@ -161,7 +159,6 @@ func CloseWindowWithContext(ctx context.Context, wnd w32.HWND, wait bool) error 
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send close message to window with handle %v", wnd))
 	default:
-		break
 	}
 
 	var ok bool

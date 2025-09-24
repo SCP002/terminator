@@ -24,7 +24,6 @@ func SendSigTermWithContext(ctx context.Context, pid int) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send SIGTERM to the process with PID %v", pid))
 	default:
-		break
 	}
 
 	proc, err := process.NewProcess(int32(pid))
@@ -48,7 +47,6 @@ func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) err
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
 	default:
-		break
 	}
 
 	proc, err := process.NewProcess(int32(pid))
@@ -76,7 +74,6 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	case <-ctx.Done():
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
 	default:
-		break
 	}
 
 	term, err := GetTerm(pid)
