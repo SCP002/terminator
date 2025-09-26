@@ -39,8 +39,8 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	if err := terminator.SendCtrlBreak(cmd.Process.Pid); err != nil {
-		fmt.Printf("SendCtrlBreak failed with: %v\n", err)
+	if err := terminator.SendSignal(cmd.Process.Pid, windows.CTRL_BREAK_EVENT); err != nil {
+		fmt.Printf("SendSignal failed with: %v\n", err)
 	}
 	if err := terminator.SendMessage(cmd.Process.Pid, "Y\r\n"); err != nil {
 		fmt.Printf("SendMessage failed with: %v\n", err)

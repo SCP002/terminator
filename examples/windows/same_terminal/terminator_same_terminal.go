@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/SCP002/terminator"
+	"golang.org/x/sys/windows"
 )
 
 func main() {
@@ -25,8 +26,8 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	if err := terminator.SendCtrlC(cmd.Process.Pid); err != nil {
-		fmt.Printf("SendCtrlC failed with: %v\n", err)
+	if err := terminator.SendSignal(cmd.Process.Pid, windows.CTRL_C_EVENT); err != nil {
+		fmt.Printf("SendSignal failed with: %v\n", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)

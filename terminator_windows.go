@@ -57,7 +57,12 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
 
-// SendSignal sends a control signal `sig` to the console process with PID `pid`.
+// SendSignal is the same as SendSignalWithContext with background context.
+func SendSignal(pid int, sig syscall.Signal) error {
+	return SendSignalWithContext(context.Background(), pid, sig)
+}
+
+// SendSignalWithContext sends a control signal `sig` to the console process with PID `pid` using context `ctx`.
 //
 // Return value (error) is nil only if proxy process successfully sent the signal, but not necessarily means that the
 // signal has been successfully received or processed.
@@ -69,7 +74,13 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 // CTRL_C_EVENT and CTRL_BREAK_EVENT can be caught as SIGINT.
 //
 // Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
-func SendSignal(pid int, sig syscall.Signal) error {
+func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) error {
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
+	default:
+	}
+
 	const NULL uintptr = 0
 	const TRUE uintptr = 1
 	const FALSE uintptr = 0

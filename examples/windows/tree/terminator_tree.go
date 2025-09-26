@@ -54,8 +54,8 @@ func main() {
 	})
 
 	// Close bottom child
-	if err := terminator.SendCtrlC(int(cmds[0].Pid)); err != nil {
-		fmt.Printf("SendCtrlC for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
+	if err := terminator.SendSignal(int(cmds[0].Pid), windows.CTRL_C_EVENT); err != nil {
+		fmt.Printf("SendSignal for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
 	}
 	if err := terminator.SendMessage(int(cmds[0].Pid), "Y\r\nexit\r\nexit\r\n"); err != nil {
 		fmt.Printf("SendMessage for child process with PID %v failed with: %v\n", cmds[0].Pid, err)
