@@ -57,52 +57,78 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 	return ErrBadExitCode{Code: code, ProcName: procName}
 }
 
-// SendCtrlC is the same as SendCtrlCWithContext with background context.
-func SendCtrlC(pid int) error {
-	return SendCtrlCWithContext(context.Background(), pid)
-}
-
-// SendCtrlCWithContext sends CTRL_C_EVENT to the process with PID `pid` using context `ctx`.
+// SendSignal sends a control signal `sig` to the console process with PID `pid`.
+//
+// Return value (error) is nil only if proxy process successfully sent the signal, but not necessarily means that the
+// signal has been successfully received or processed.
+// Among others, can return ErrProcDied and ErrBadExitCode errors defined in this package.
 //
 // If target process was started with CREATE_NEW_PROCESS_GROUP creation flag and SysProcAttr.NoInheritHandles is set to
 // false, CTRL_C_EVENT will have no effect.
 //
-// Can be caught as SIGINT.
-func SendCtrlCWithContext(ctx context.Context, pid int) error {
-	select {
-	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send CTRL_C_EVENT to process with PID %v", pid))
-	default:
-		return errors.Wrap(sendSig(pid, windows.CTRL_C_EVENT), "Failed to send CTRL_C_EVENT")
-	}
-}
-
-// SendCtrlBreak is the same as SendCtrlBreakWithContext with background context.
-func SendCtrlBreak(pid int) error {
-	return SendCtrlBreakWithContext(context.Background(), pid)
-}
-
-// SendCtrlBreakWithContext sends CTRL_BREAK_EVENT to the process with PID `pid` using context `ctx`.
+// CTRL_C_EVENT and CTRL_BREAK_EVENT can be caught as SIGINT.
 //
-// Can be caught as SIGINT.
-func SendCtrlBreakWithContext(ctx context.Context, pid int) error {
-	select {
-	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send CTRL_BREAK_EVENT to process with PID %v", pid))
-	default:
+// Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
+func SendSignal(pid int, sig syscall.Signal) error {
+	const NULL uintptr = 0
+	const TRUE uintptr = 1
+	const FALSE uintptr = 0
+
+	if sig == windows.CTRL_C_EVENT {
+		// Disable Ctrl + C processing. If we don't disable it here, then despite the fact we're enabling it in Another
+		// Process later, if the target process is using the same console as the current process, this program will
+		// terminate itself.
+		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
+		r1, _, err := setConsoleCtrlHandler.Call(NULL, TRUE)
+		if r1 == 0 {
+			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
+		}
 	}
 
-	// If target process shares the same console with this one, CTRL_BREAK_EVENT will stop this process and
-	// SetConsoleCtrlHandler can't prevent it.
-	attached, err := isAttachedToCaller(pid)
+	proxyPath, err := getProxyPath()
 	if err != nil {
-		return errors.Wrap(err, "Failed to send CTRL_BREAK_EVENT")
+		return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
 	}
-	if attached {
-		msg := "Failed to send CTRL_BREAK_EVENT: The process with PID %v is attached to current console"
-		return errors.New(fmt.Sprintf(msg, pid))
+	// Start a kamikaze process to attach to the console of the target process and send a signal.
+	// Such proxy process is required because:
+	// If the target process has it's own, separate console, then to attach to that console we have to FreeConsole of
+	// this process first, so, unless this process was started from cmd.exe, the current console will be destroyed by
+	// the system, so, this process will lose it's original console (AllocConsole means lost previous output, probably
+	// broken redirection etc).
+	// See /internal/proxy/proxy.go for the source code.
+	kamikaze := exec.Command(proxyPath, "-mode", "signal", "-pid", fmt.Sprint(pid), "-sig", fmt.Sprint(sig))
+	attr := syscall.SysProcAttr{}
+	attr.CreationFlags |= windows.DETACHED_PROCESS
+	attr.NoInheritHandles = true
+	kamikaze.SysProcAttr = &attr
+	// We don't rely on error value from Run() as it will return error if exit code is not 0, but in our case, normal
+	// exit code is STATUS_CONTROL_C_EXIT (even if CTRL_BREAK_EVENT was sent).
+	_ = kamikaze.Run()
+
+	if sig == windows.CTRL_C_EVENT {
+		// Enable Ctrl + C processing back to make this program react on Ctrl + C accordingly again and prevent new
+		// child processes from inheriting the disabled state.
+		// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back again to prevent self kill
+		// if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is sent.
+		// We omit such delay as the call to kamikaze.Run() stops the current goroutine until CTRL_C_EVENT is sent or
+		// the process exited with unexpected exit code (CTRL_C_EVENT failed).
+		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
+		r1, _, err := setConsoleCtrlHandler.Call(NULL, FALSE)
+		if r1 == 0 {
+			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
+		}
 	}
-	return errors.Wrap(sendSig(pid, windows.CTRL_BREAK_EVENT), "Failed to send CTRL_BREAK_EVENT")
+
+	// Return error if the kamikaze process exited with ProcessDoesNotExist or not with STATUS_CONTROL_C_EXIT.
+	exitCode := kamikaze.ProcessState.ExitCode()
+	if exitCode == exitcodes.ProcessDoesNotExist {
+		return newErrProcDied(pid)
+	}
+	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
+		return newErrBadExitCode(exitCode, "Kamikaze")
+	}
+
+	return nil
 }
 
 // SendMessage is the same as SendMessageWithContext with background context.
@@ -221,75 +247,6 @@ func IsUWPAppWindow(wnd w32.HWND) bool {
 // Inspired by https://stackoverflow.com/a/21767578.
 func IsMainWindow(wnd w32.HWND) bool {
 	return w32.GetWindow(wnd, w32.GW_OWNER) == 0 && w32.IsWindowVisible(wnd)
-}
-
-// sendSig sends a control signal `sig` to the console process with PID `pid`.
-//
-// Return value (error) is nil only if proxy process successfully sent the signal, but not necessarily means that the
-// signal has been successfully received or processed.
-// Among others, can return ErrProcDied and ErrBadExitCode errors defined in this package.
-//
-// Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
-func sendSig(pid int, sig int) error {
-	const NULL uintptr = 0
-	const TRUE uintptr = 1
-	const FALSE uintptr = 0
-
-	if sig == windows.CTRL_C_EVENT {
-		// Disable Ctrl + C processing. If we don't disable it here, then despite the fact we're enabling it in Another
-		// Process later, if the target process is using the same console as the current process, this program will
-		// terminate itself.
-		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
-		r1, _, err := setConsoleCtrlHandler.Call(NULL, TRUE)
-		if r1 == 0 {
-			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
-		}
-	}
-
-	proxyPath, err := getProxyPath()
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
-	}
-	// Start a kamikaze process to attach to the console of the target process and send a signal.
-	// Such proxy process is required because:
-	// If the target process has it's own, separate console, then to attach to that console we have to FreeConsole of
-	// this process first, so, unless this process was started from cmd.exe, the current console will be destroyed by
-	// the system, so, this process will lose it's original console (AllocConsole means lost previous output, probably
-	// broken redirection etc).
-	// See /internal/proxy/proxy.go for the source code.
-	kamikaze := exec.Command(proxyPath, "-mode", "signal", "-pid", fmt.Sprint(pid), "-sig", fmt.Sprint(sig))
-	attr := syscall.SysProcAttr{}
-	attr.CreationFlags |= windows.DETACHED_PROCESS
-	attr.NoInheritHandles = true
-	kamikaze.SysProcAttr = &attr
-	// We don't rely on error value from Run() as it will return error if exit code is not 0, but in our case, normal
-	// exit code is STATUS_CONTROL_C_EXIT (even if CTRL_BREAK_EVENT was sent).
-	_ = kamikaze.Run()
-
-	if sig == windows.CTRL_C_EVENT {
-		// Enable Ctrl + C processing back to make this program react on Ctrl + C accordingly again and prevent new
-		// child processes from inheriting the disabled state.
-		// Usually, similar algorithms wait for a few seconds before enabling Ctrl + C back again to prevent self kill
-		// if SetConsoleCtrlHandler triggered before CTRL_C_EVENT is sent.
-		// We omit such delay as the call to kamikaze.Run() stops the current goroutine until CTRL_C_EVENT is sent or
-		// the process exited with unexpected exit code (CTRL_C_EVENT failed).
-		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
-		r1, _, err := setConsoleCtrlHandler.Call(NULL, FALSE)
-		if r1 == 0 {
-			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
-		}
-	}
-
-	// Return error if the kamikaze process exited with ProcessDoesNotExist or not with STATUS_CONTROL_C_EXIT.
-	exitCode := kamikaze.ProcessState.ExitCode()
-	if exitCode == exitcodes.ProcessDoesNotExist {
-		return newErrProcDied(pid)
-	}
-	if exitCode != wincodes.STATUS_CONTROL_C_EXIT {
-		return newErrBadExitCode(exitCode, "Kamikaze")
-	}
-
-	return nil
 }
 
 // getProxyPath returns proxy executable path.

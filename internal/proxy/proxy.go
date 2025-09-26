@@ -5,6 +5,7 @@ package main
 import (
 	"flag"
 	"os"
+	"syscall"
 
 	"github.com/SCP002/terminator/internal/proxy/exitcodes"
 	"github.com/SCP002/terminator/internal/proxy/message"
@@ -35,7 +36,7 @@ func main() {
 
 	switch mode {
 	case "signal":
-		signal.Send(pid, sig)
+		signal.Send(pid, syscall.Signal(sig))
 	case "message":
 		message.Send(pid, msg)
 	default:

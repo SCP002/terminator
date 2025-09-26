@@ -13,29 +13,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// SendSigTerm is the same as SendSigTermWithContext with background context.
-func SendSigTerm(pid int) error {
-	return SendSigTermWithContext(context.Background(), pid)
-}
-
-// SendSigTermWithContext sends SIGTERM signal to the process with PID `pid` using context `ctx`.
-func SendSigTermWithContext(ctx context.Context, pid int) error {
-	select {
-	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send SIGTERM to the process with PID %v", pid))
-	default:
-	}
-
-	proc, err := process.NewProcess(int32(pid))
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send SIGTERM to the process with PID %v", pid))
-	}
-	if err := proc.Terminate(); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send SIGTERM to the process with PID %v", pid))
-	}
-	return nil
-}
-
 // SendSignal is the same as SendSignalWithContext with background context.
 func SendSignal(pid int, sig syscall.Signal) error {
 	return SendSignalWithContext(context.Background(), pid, sig)
