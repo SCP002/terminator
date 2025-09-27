@@ -12,6 +12,28 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// SendSigintOrCtrlC is the same as SendSigintOrCtrlCWithContext with background context.
+func SendSigintOrCtrlC(pid int) error {
+	return SendSigintOrCtrlCWithContext(context.Background(), pid)
+}
+
+// SendSigintOrCtrlCWithContext sends SIGINT on POSIX and CTRL_C_EVENT on Windows to process with PID `pid` using
+// context `ctx`.
+func SendSigintOrCtrlCWithContext(ctx context.Context, pid int) error {
+	return SendSignalWithContext(ctx, pid, syscall.SIGINT)
+}
+
+// SendSigintOrCtrlBreak is the same as SendSigintOrCtrlBreakWithContext with background context.
+func SendSigintOrCtrlBreak(pid int) error {
+	return SendSigintOrCtrlBreakWithContext(context.Background(), pid)
+}
+
+// SendSigintOrCtrlBreakWithContext sends SIGINT on POSIX and CTRL_BREAK_EVENT on Windows to process with PID `pid`
+// using context `ctx`.
+func SendSigintOrCtrlBreakWithContext(ctx context.Context, pid int) error {
+	return SendSignalWithContext(ctx, pid, syscall.SIGINT)
+}
+
 // SendSignal is the same as SendSignalWithContext with background context.
 func SendSignal(pid int, sig syscall.Signal) error {
 	return SendSignalWithContext(context.Background(), pid, sig)
