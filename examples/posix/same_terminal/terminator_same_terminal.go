@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 	"time"
 
 	"github.com/SCP002/terminator"
@@ -26,7 +27,7 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	// Ctrl + C
-	if err := terminator.SendMessage(cmd.Process.Pid, "\x03"); err != nil {
+	if err := terminator.SendSignal(cmd.Process.Pid, syscall.SIGINT); err != nil {
 		fmt.Printf("SendMessage failed with: %v\n", err)
 	}
 

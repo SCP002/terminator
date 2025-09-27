@@ -6,4 +6,4 @@ clear
 go mod tidy
 
 # Run
-go run "terminator_external_pid_sigint.go"
+sudo go run "terminator_external_pid_sigint.go"

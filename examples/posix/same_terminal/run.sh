@@ -6,4 +6,4 @@ clear
 go mod tidy
 
 # Run
-go run "terminator_same_terminal.go"
+sudo go run "terminator_same_terminal.go"
