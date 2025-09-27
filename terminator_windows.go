@@ -80,6 +80,21 @@ func SendSigintOrCtrlBreakWithContext(ctx context.Context, pid int) error {
 	return SendSignalWithContext(ctx, pid, windows.CTRL_BREAK_EVENT)
 }
 
+// SendSigintOrCloseWindow is the same as SendSigintOrCloseWindowWithContext with background context.
+func SendSigintOrCloseWindow(pid int) error {
+	return SendSigintOrCloseWindowWithContext(context.Background(), pid)
+}
+
+// SendSigintOrCloseWindowWithContext sends SIGINT on POSIX and closes main GUI window on Windows of process with PID
+// `pid` using context `ctx`.
+func SendSigintOrCloseWindowWithContext(ctx context.Context, pid int) error {
+	wnd, err := GetMainWindow(pid, false)
+	if err != nil {
+		return err
+	}
+	return CloseWindowWithContext(ctx, wnd, false)
+}
+
 // SendSignal is the same as SendSignalWithContext with background context.
 func SendSignal(pid int, sig int) error {
 	return SendSignalWithContext(context.Background(), pid, sig)

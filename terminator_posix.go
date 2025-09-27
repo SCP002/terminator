@@ -34,6 +34,17 @@ func SendSigintOrCtrlBreakWithContext(ctx context.Context, pid int) error {
 	return SendSignalWithContext(ctx, pid, syscall.SIGINT)
 }
 
+// SendSigintOrCloseWindow is the same as SendSigintOrCloseWindowWithContext with background context.
+func SendSigintOrCloseWindow(pid int) error {
+	return SendSigintOrCloseWindowWithContext(context.Background(), pid)
+}
+
+// SendSigintOrCloseWindowWithContext sends SIGINT on POSIX and closes main GUI window on Windows of process with PID
+// `pid` using context `ctx`.
+func SendSigintOrCloseWindowWithContext(ctx context.Context, pid int) error {
+	return SendSignalWithContext(ctx, pid, syscall.SIGINT)
+}
+
 // SendSignal is the same as SendSignalWithContext with background context.
 func SendSignal(pid int, sig syscall.Signal) error {
 	return SendSignalWithContext(context.Background(), pid, sig)

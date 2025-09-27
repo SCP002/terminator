@@ -26,7 +26,6 @@ func main() {
 	fmt.Println("Process started")
 	time.Sleep(2 * time.Second)
 
-	// Ctrl + C
 	if err := terminator.SendSignal(cmd.Process.Pid, syscall.SIGINT); err != nil {
 		fmt.Printf("SendMessage failed with: %v\n", err)
 	}
