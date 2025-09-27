@@ -4,7 +4,6 @@ package terminator
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"syscall"
 
@@ -22,7 +21,7 @@ func SendSignal(pid int, sig syscall.Signal) error {
 func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
+		return errors.Wrapf(ctx.Err(), "Send signal %v to the process with PID %v", sig, pid)
 	default:
 	}
 
@@ -49,7 +48,7 @@ func SendMessage(pid int, msg string) error {
 func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+		return errors.Wrapf(ctx.Err(), "Write message to stdin of the process with PID %v", pid)
 	default:
 	}
 

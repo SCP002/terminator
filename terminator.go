@@ -18,7 +18,7 @@ func Kill(pid int) error {
 func KillWithContext(ctx context.Context, pid int) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Kill process with PID %v", pid))
+		return errors.Wrapf(ctx.Err(), "Kill process with PID %v", pid)
 	default:
 	}
 

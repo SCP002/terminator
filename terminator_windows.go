@@ -78,7 +78,7 @@ func SendSignal(pid int, sig syscall.Signal) error {
 func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
+		return errors.Wrapf(ctx.Err(), "Send signal %v to the process with PID %v", sig, pid)
 	default:
 	}
 
@@ -154,7 +154,7 @@ func SendMessage(pid int, msg string) error {
 func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send message to process with PID %v", pid))
+		return errors.Wrapf(ctx.Err(), "Failed to send message to process with PID %v", pid)
 	default:
 	}
 
@@ -195,7 +195,7 @@ func CloseWindow(wnd w32.HWND, wait bool) error {
 func CloseWindowWithContext(ctx context.Context, wnd w32.HWND, wait bool) error {
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), fmt.Sprintf("Failed to send close message to window with handle %v", wnd))
+		return errors.Wrapf(ctx.Err(), "Failed to send close message to window with handle %v", wnd)
 	default:
 	}
 
