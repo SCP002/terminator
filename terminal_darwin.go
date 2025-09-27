@@ -3,7 +3,6 @@
 package terminator
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/cockroachdb/errors"
@@ -14,15 +13,15 @@ import (
 func GetTerm(pid int) (string, error) {
 	kProc, err := unix.SysctlKinfoProc("kern.proc.pid", int(pid))
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Get terminal for PID %v: Get kernel process info", pid))
+		return "", errors.Wrapf(err, "Get terminal for PID %v: Get kernel process info", pid)
 	}
 	termMap, err := getTerminalMap()
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Get terminal for PID %v", pid))
+		return "", errors.Wrapf(err, "Get terminal for PID %v", pid)
 	}
 	term, ok := termMap[kProc.Eproc.Tdev]
 	if !ok {
-		return "", errors.New(fmt.Sprintf("Get terminal for PID %v: Terminal not found", pid))
+		return "", errors.Newf("Get terminal for PID %v: Terminal not found", pid)
 	}
 	return term, nil
 }

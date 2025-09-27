@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"unsafe"
 
@@ -92,13 +93,13 @@ func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) err
 		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := setConsoleCtrlHandler.Call(NULL, TRUE)
 		if r1 == 0 {
-			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
+			return errors.Wrapf(err, "Send signal %v to process with PID %v", sig, pid)
 		}
 	}
 
 	proxyPath, err := getProxyPath()
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
+		return errors.Wrapf(err, "Send signal %v to process with PID %v", sig, pid)
 	}
 	// Start a kamikaze process to attach to the console of the target process and send a signal.
 	// Such proxy process is required because:
@@ -126,7 +127,7 @@ func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) err
 		setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
 		r1, _, err := setConsoleCtrlHandler.Call(NULL, FALSE)
 		if r1 == 0 {
-			return errors.Wrap(err, fmt.Sprintf("Send signal %v to process with PID %v", sig, pid))
+			return errors.Wrapf(err, "Send signal %v to process with PID %v", sig, pid)
 		}
 	}
 
@@ -159,7 +160,7 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 
 	proxyPath, err := getProxyPath()
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to send message to process with PID %v", pid))
+		return errors.Wrapf(err, "Failed to send message to process with PID %v", pid)
 	}
 	// Start a message sender process to attach to the console of the target process and write a message to it's input
 	// using the -msg flag.
@@ -173,7 +174,7 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 	if msgSender.ProcessState.ExitCode() == exitcodes.ProcessDoesNotExist {
 		return newErrProcDied(pid)
 	}
-	return errors.Wrap(err, fmt.Sprintf("Failed to send message to process with PID %v", pid))
+	return errors.Wrapf(err, "Failed to send message to process with PID %v", pid)
 }
 
 // CloseWindow is the same as CloseWindowWithContext with background context.
@@ -206,7 +207,7 @@ func CloseWindowWithContext(ctx context.Context, wnd w32.HWND, wait bool) error 
 		ok = w32.PostMessage(wnd, uint32(message), 0, 0)
 	}
 	if !ok {
-		return errors.New(fmt.Sprintf("Failed to send close message to window with handle %v", wnd))
+		return errors.Newf("Failed to send close message to window with handle %v", wnd)
 	}
 	return nil
 }
@@ -226,7 +227,7 @@ func GetMainWindow(pid int, allowOwnConsole bool) (w32.HWND, error) {
 				return w32.GetConsoleWindow(), nil
 			}
 		}
-		return wnd, errors.New(fmt.Sprintf("Failed to get main window handle for PID %v", pid))
+		return wnd, errors.Newf("Failed to get main window handle for PID %v", pid)
 	}
 }
 
@@ -287,12 +288,10 @@ func getProxyPath() (string, error) {
 func isAttachedToCaller(pid int) (bool, error) {
 	pids, err := getConsolePids(1)
 	if err != nil {
-		return false, errors.Wrap(err, fmt.Sprintf("Check if PID %v is attached to caller", pid))
+		return false, errors.Wrapf(err, "Check if PID %v is attached to caller", pid)
 	}
-	for _, currentPid := range pids {
-		if currentPid == uint32(pid) {
-			return true, nil
-		}
+	if slices.Contains(pids, uint32(pid)) {
+		return true, nil
 	}
 	return false, nil
 }

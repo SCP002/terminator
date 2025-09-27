@@ -28,10 +28,10 @@ func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) err
 
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
+		return errors.Wrapf(err, "Send signal %v to the process with PID %v", sig, pid)
 	}
 	if err := proc.SendSignal(sig); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Send signal %v to the process with PID %v", sig, pid))
+		return errors.Wrapf(err, "Send signal %v to the process with PID %v", sig, pid)
 	}
 	return nil
 }
@@ -55,16 +55,16 @@ func SendMessageWithContext(ctx context.Context, pid int, msg string) error {
 
 	term, err := GetTerm(pid)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+		return errors.Wrapf(err, "Write message to stdin of the process with PID %v", pid)
 	}
 	file, err := os.OpenFile(term, os.O_WRONLY, 0644)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+		return errors.Wrapf(err, "Write message to stdin of the process with PID %v", pid)
 	}
 	defer file.Close()
 	for _, char := range msg {
 		if err = unix.IoctlSetPointerInt(int(file.Fd()), unix.TIOCSTI, int(char)); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Write message to stdin of the process with PID %v", pid))
+			return errors.Wrapf(err, "Write message to stdin of the process with PID %v", pid)
 		}
 	}
 	return nil

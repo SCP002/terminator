@@ -24,7 +24,7 @@ func KillWithContext(ctx context.Context, pid int) error {
 
 	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Kill process with PID %v", pid))
+		return errors.Wrapf(err, "Kill process with PID %v", pid)
 	}
 	return errors.Wrap(proc.Kill(), fmt.Sprintf("Kill process with PID %v", pid))
 }
@@ -79,7 +79,7 @@ func flatChildTree(proc *process.Process, tree *[]*process.Process, withRoot boo
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Get flat process tree for PID %v", proc.Pid))
+		return errors.Wrapf(err, "Get flat process tree for PID %v", proc.Pid)
 	}
 	// Iterate for each child process in reverse order.
 	for i := len(children) - 1; i >= 0; i-- {
