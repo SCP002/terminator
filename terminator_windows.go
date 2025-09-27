@@ -59,7 +59,7 @@ func newErrBadExitCode(code int, procName string) ErrBadExitCode {
 }
 
 // SendSignal is the same as SendSignalWithContext with background context.
-func SendSignal(pid int, sig syscall.Signal) error {
+func SendSignal(pid int, sig int) error {
 	return SendSignalWithContext(context.Background(), pid, sig)
 }
 
@@ -75,7 +75,7 @@ func SendSignal(pid int, sig syscall.Signal) error {
 // CTRL_C_EVENT and CTRL_BREAK_EVENT can be caught as SIGINT.
 //
 // Inspired by https://stackoverflow.com/a/15281070, https://stackoverflow.com/a/2445728.
-func SendSignalWithContext(ctx context.Context, pid int, sig syscall.Signal) error {
+func SendSignalWithContext(ctx context.Context, pid int, sig int) error {
 	select {
 	case <-ctx.Done():
 		return errors.Wrapf(ctx.Err(), "Send signal %v to the process with PID %v", sig, pid)

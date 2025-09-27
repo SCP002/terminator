@@ -5,7 +5,6 @@ package signal
 import (
 	"errors"
 	"os"
-	"syscall"
 
 	"golang.org/x/sys/windows"
 
@@ -20,7 +19,7 @@ const (
 )
 
 // Send sends a control signal `sig` to the console of the process with PID `pid`.
-func Send(pid int, sig syscall.Signal) {
+func Send(pid int, sig int) {
 	// Negative process identifiers are disallowed in Windows, using it as a default value check.
 	if pid == -1 {
 		os.Exit(exitcodes.WrongPid)
