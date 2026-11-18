@@ -328,20 +328,49 @@ fn generate_here(event: u32) -> Result<()> {
     Ok(())
 }
 
-fn key_record(ch: u16) -> INPUT_RECORD {
+const VK_RETURN: u16 = 0x0D;
+const SCAN_RETURN: u16 = 0x1C;
+
+fn key_record(down: bool, vk: u16, scan: u16, ch: u16) -> INPUT_RECORD {
     INPUT_RECORD {
         EventType: KEY_EVENT as u16,
         Event: INPUT_RECORD_0 {
             KeyEvent: KEY_EVENT_RECORD {
-                bKeyDown: TRUE,
+                bKeyDown: if down { TRUE } else { 0 },
                 wRepeatCount: 1,
-                wVirtualKeyCode: 0,
-                wVirtualScanCode: 0,
+                wVirtualKeyCode: vk,
+                wVirtualScanCode: scan,
                 uChar: KEY_EVENT_RECORD_0 { UnicodeChar: ch },
                 dwControlKeyState: 0,
             },
         },
     }
+}
+
+/// Turns text into console key events.
+///
+/// Ordinary characters are key-down only with no virtual key code. Line breaks (`\r`, `\n` and
+/// `\r\n`) become one real Enter press (down and up, with the Return virtual key and scan code).
+fn key_records(msg: &str) -> Vec<INPUT_RECORD> {
+    let mut out = Vec::with_capacity(msg.len());
+    let mut prev_cr = false;
+    for ch in msg.encode_utf16() {
+        match ch {
+            0x0D | 0x0A => {
+                // The `\n` of a `\r\n` pair is already covered by the Enter sent for `\r`.
+                if !(ch == 0x0A && prev_cr) {
+                    out.push(key_record(true, VK_RETURN, SCAN_RETURN, 0x0D));
+                    out.push(key_record(false, VK_RETURN, SCAN_RETURN, 0x0D));
+                }
+                prev_cr = ch == 0x0D;
+            }
+            _ => {
+                out.push(key_record(true, 0, 0, ch));
+                prev_cr = false;
+            }
+        }
+    }
+    out
 }
 
 fn write_input_here(msg: &str) -> Result<()> {
@@ -351,7 +380,7 @@ fn write_input_here(msg: &str) -> Result<()> {
             "empty message",
         )));
     }
-    let records: Vec<INPUT_RECORD> = msg.encode_utf16().map(key_record).collect();
+    let records = key_records(msg);
     let name: Vec<u16> = "CONIN$\0".encode_utf16().collect();
     // SAFETY: `name` is NUL-terminated; `records` outlives the call.
     unsafe {

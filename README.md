@@ -62,7 +62,7 @@ route that is safe:
 
 | Caller                       | Target          | Route       | What happens                                  |
 |------------------------------|-----------------|-------------|-----------------------------------------------|
-| shares the target's console | same console    | `Direct`    | Generate the event right here                 |
+| shares the target's console  | same console    | `Direct`    | Generate the event right here                 |
 | has no console               | any console     | `InProcess` | Attach, send, detach (under a lock)           |
 | has its own console          | another console | `Helper`    | A short-lived detached helper attaches, sends |
 
