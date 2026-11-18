@@ -1,0 +1,98 @@
+name: Release
+
+# Publish a release by pushing a tag that matches the version in Cargo.toml:
+#   git tag -a v2.0.0 -m "terminator 2.0.0" && git push origin v2.0.0
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-tag:
+    name: Check tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must match the version in Cargo.toml
+        run: |
+          crate_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          if [ "v${crate_version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${crate_version}" >&2
+            exit 1
+          fi
+
+  ci:
+    name: CI
+    needs: check-tag
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: ci
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-pc-windows-msvc,    os: windows-latest,   exe: .exe, ext: zip }
+          - { target: aarch64-pc-windows-msvc,   os: windows-latest,   exe: .exe, ext: zip }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest,    exe: "",   ext: tar.gz, musl: true }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, exe: "",  ext: tar.gz, musl: true }
+          - { target: x86_64-apple-darwin,       os: macos-latest,     exe: "",   ext: tar.gz }
+          - { target: aarch64-apple-darwin,      os: macos-latest,     exe: "",   ext: tar.gz }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install musl tools
+        if: matrix.musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Build
+        run: cargo build --locked --release --bin terminator --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          name="terminator-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/terminator${{ matrix.exe }}" LICENSE README.md "$name/"
+          if [ "${{ matrix.ext }}" = zip ]; then
+            7z a "$name.zip" "$name" > /dev/null
+          else
+            tar czf "$name.tar.gz" "$name"
+          fi
+          echo "ASSET=$name.${{ matrix.ext }}" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum terminator-* > SHA256SUMS
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "terminator ${GITHUB_REF_NAME#v}" \
+            --generate-notes

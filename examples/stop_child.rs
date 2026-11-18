@@ -41,6 +41,15 @@ fn main() {
     #[cfg(not(windows))]
     let _ = (hidden, &helper);
 
+    // Whoever started this demo may have disabled Ctrl+C (CREATE_NEW_PROCESS_GROUP, or a shell
+    // that called SetConsoleCtrlHandler(NULL, TRUE)). That state is inherited, so `ping` would
+    // ignore the event we are about to send. Make sure the child starts with normal handling.
+    #[cfg(windows)]
+    // SAFETY: plain call, no pointers; (NULL, FALSE) restores the default handling.
+    unsafe {
+        windows_sys::Win32::System::Console::SetConsoleCtrlHandler(None, 0);
+    }
+
     let mut cmd;
     #[cfg(windows)]
     {

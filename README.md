@@ -18,6 +18,17 @@ On Linux and macOS it can:
 
 On every platform it can kill a process, wait for it to exit and list its descendants.
 
+## Install
+
+Download an archive for your system from the
+[releases page](https://github.com/SCP002/terminator/releases) (Windows x86_64 / ARM64, Linux
+x86_64 / ARM64 static builds, macOS Intel / Apple silicon), check it against `SHA256SUMS` and put
+`terminator` somewhere in your `PATH`. Or build it yourself:
+
+```text
+cargo install --git https://github.com/SCP002/terminator
+```
+
 ## Command line
 
 ```text
