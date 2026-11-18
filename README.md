@@ -99,8 +99,11 @@ Notes:
   child of every console application, but it is not part of the program's own process tree.
 * Ctrl+C and Ctrl+Break reach **every** process attached to the target console that has not
   disabled them, not only the target process.
-* A UWP app has no top-level window of its own, so `close-window` finds the `ApplicationFrameWindow` that hosts
-  it and closes that, like the close button does.
+* A process that was started with Ctrl+C disabled (`CREATE_NEW_PROCESS_GROUP`, or a parent that
+  called `SetConsoleCtrlHandler(NULL, TRUE)`) passes that on to its children, and such a process
+  ignores `ctrl-c`. Use `ctrl-break` or `close-window` for it.
+* A UWP app has no top-level window of its own, so `close-window` finds the
+  `ApplicationFrameWindow` that hosts it and closes that, like the close button does.
 * A target that is elevated while the caller is not may fail with "access denied".
 
 ## Tests
@@ -108,6 +111,8 @@ Notes:
 ```text
 cargo test
 ```
+
+CI runs the same command on Linux, macOS and Windows.
 
 The end-to-end tests run the real CLI in each console state (own console, no console, shared
 console) against a small `victim` process (`examples/victim.rs`) that records what it observed,
@@ -117,6 +122,10 @@ that packaged (UWP) apps can be closed by pid.
 
 ## Status
 
-Tested on Windows 11 (x86_64) and Linux (x86_64). macOS and other Unix systems compile the same
-POSIX code but are untested; ARM64 and x86 Windows are untested. Closing a UWP app was checked on the
-Calculator (an ignored test, see above).
+The test suite runs on every push in GitHub Actions on Linux (x86_64), macOS (Apple silicon) and
+Windows (x86_64). Release builds for Windows ARM64, Linux ARM64 and macOS Intel are produced by the
+same workflow but are not run by it; x86 Windows and other Unix systems are untested.
+
+Not covered by the automated tests: sending text to a terminal on Linux and macOS (`TIOCSTI`,
+which needs a terminal and usually root, and is disabled by default on recent Linux kernels), and
+closing a UWP app. The latter was checked by hand on the Calculator (an ignored test, see above).
