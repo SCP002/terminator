@@ -1,7 +1,7 @@
 name: Release
 
 # Publish a release by pushing a tag that matches the version in Cargo.toml:
-#   git tag -a v2.0.0 -m "terminator 2.0.0" && git push origin v2.0.0
+#   git tag -a v2.0.0 -m "v2.0.0" && git push origin v2.0.0
 
 on:
   push:
@@ -94,5 +94,5 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "terminator ${GITHUB_REF_NAME#v}" \
+            --title "${GITHUB_REF_NAME}" \
             --generate-notes

@@ -77,7 +77,7 @@ fn run(args: Vec<String>) -> Result<u8, String> {
             return Ok(0);
         }
         "-V" | "--version" => {
-            println!("terminator {}", env!("CARGO_PKG_VERSION"));
+            println!("v{}", env!("CARGO_PKG_VERSION"));
             return Ok(0);
         }
         _ => {}
