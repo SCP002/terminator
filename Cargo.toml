@@ -1,5 +1,5 @@
 [package]
-name = "terminator"
+name = "process-terminator"
 version = "2.0.0"
 edition = "2021"
 rust-version = "1.74"
@@ -9,7 +9,14 @@ description = "Stop processes gracefully, even on Windows, without a kamikaze pr
 repository = "https://github.com/SCP002/terminator"
 readme = "README.md"
 keywords = ["kill", "signal", "ctrl-c", "sigint", "process"]
+documentation = "https://docs.rs/process-terminator"
 categories = ["os", "command-line-utilities"]
+exclude = [".github"]
+
+[package.metadata.docs.rs]
+# The Windows API (helper, windows) is the larger part; show it by default.
+default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]
 
 [lib]
 name = "terminator"

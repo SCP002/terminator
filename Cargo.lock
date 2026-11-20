@@ -39,6 +39,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-terminator"
+version = "2.0.0"
+dependencies = [
+ "libc",
+ "sysinfo",
+ "windows-sys",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -69,15 +78,6 @@ dependencies = [
  "memchr",
  "ntapi",
  "windows",
-]
-
-[[package]]
-name = "terminator"
-version = "2.0.0"
-dependencies = [
- "libc",
- "sysinfo",
- "windows-sys",
 ]
 
 [[package]]

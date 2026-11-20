@@ -23,7 +23,17 @@ On every platform it can kill a process, wait for it to exit and list its descen
 Download an archive for your system from the
 [releases page](https://github.com/SCP002/terminator/releases) (Windows x86_64 / ARM64, Linux
 x86_64 / ARM64 static builds, macOS Intel / Apple silicon), check it against `SHA256SUMS` and put
-`terminator` somewhere in your `PATH`. Or build it yourself:
+`terminator` somewhere in your `PATH`.
+
+Or install it from [crates.io](https://crates.io/crates/process-terminator), where it is published
+as `process-terminator` (the name `terminator` is taken). The installed command is still called
+`terminator`:
+
+```text
+cargo install process-terminator
+```
+
+Or build the latest source yourself:
 
 ```text
 cargo install --git https://github.com/SCP002/terminator
@@ -49,6 +59,13 @@ Exit codes: `0` success, `1` operation failed, `2` bad usage, `3` process still 
 
 ## Library
 
+The crate is on [crates.io](https://crates.io/crates/process-terminator) as `process-terminator`,
+but the library itself is named `terminator`, so the code uses `terminator::...`:
+
+```text
+cargo add process-terminator
+```
+
 ```rust
 use std::time::Duration;
 use terminator::{kill, stop, wait_for_stop, Method};
@@ -63,7 +80,8 @@ fn main() -> terminator::Result<()> {
 }
 ```
 
-See the [`examples`](examples) folder and the API documentation (`cargo doc --open`).
+See the [`examples`](examples) folder and the API documentation on
+[docs.rs](https://docs.rs/process-terminator) (or `cargo doc --open`).
 
 ## How it works on Windows
 
