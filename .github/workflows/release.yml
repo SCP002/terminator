@@ -1,6 +1,7 @@
 name: Release
 
-# Publish a release by pushing a tag that matches the version in Cargo.toml:
+# Publish a release (GitHub release + crates.io) by pushing a tag that matches the version in
+# Cargo.toml:
 #   git tag -a v2.0.0 -m "v2.0.0" && git push origin v2.0.0
 
 on:
@@ -96,3 +97,18 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes
+
+  crate:
+    name: Publish to crates.io
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # trusted publishing: exchange a GitHub OIDC token for a crates.io token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
